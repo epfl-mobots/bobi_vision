@@ -4,10 +4,10 @@
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 
-#include <bobi_vision/blob_detector.h>
+#include <bobi_vision/blob_detector.hpp>
 
 #include <bobi_msgs/PoseStamped.h>
-#include <bobi_msgs/NaivePoses.h>
+#include <bobi_msgs/PoseVec.h>
 
 #include <iostream>
 
@@ -75,8 +75,7 @@ int main(int argc, char** argv)
     image_transport::Publisher blob_pub = it.advertise("top_camera/image_blobs", 1);
 
     // pose publisher
-    ros::Publisher pose_pub;
-    pose_pub = nh.advertise<bobi_msgs::NaivePoses>("naive_poses", 1);
+    ros::Publisher pose_pub = nh.advertise<bobi_msgs::PoseVec>("naive_poses", 1);
 
     defaults::BlobDetectorConfig cfg;
     BlobDetector bd(cfg, true);
@@ -97,16 +96,16 @@ int main(int argc, char** argv)
         std::vector<cv::Point3f> poses2d = bd.detect(frame);
 
         // publish the poses of the individuals that were detected
-        bobi_msgs::NaivePoses np;
+        bobi_msgs::PoseVec pv;
         for (const cv::Point3f& pose2d : poses2d) {
             bobi_msgs::PoseStamped pose;
             pose.header = header;
             pose.pose.xyz.x = pose2d.x;
             pose.pose.xyz.y = pose2d.y;
             pose.pose.rpy.yaw = pose2d.z;
-            np.poses.push_back(pose);
+            pv.poses.push_back(pose);
         }
-        pose_pub.publish(np);
+        pose_pub.publish(pv);
 
         // publish the image that contains the filtered image
         sensor_msgs::ImagePtr blob_image_ptr = cv_bridge::CvImage(header, "mono8", bd.get_blob_frame()).toImageMsg();

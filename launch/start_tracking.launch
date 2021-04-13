@@ -1,0 +1,12 @@
+<launch>
+
+    <arg name="ns" default="/" />
+    <group ns="$(arg ns)">
+        <rosparam command="load" file="$(find bobi_vision)/config/camera_config.yaml" />
+
+        <include file="$(find bobi_vision)/launch/individual_tracker.launch" />
+        <include file="$(find bobi_vision)/launch/robot_tracker.launch" />
+        <include file="$(find bobi_vision)/launch/visualization.launch" />
+    </group>
+
+</launch>

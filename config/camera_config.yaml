@@ -1,6 +1,6 @@
 top_camera:
-  camera_dev_no: 2
-  # camera_dev_no: /home/vpapaspy/Desktop/2fish_exps/exp2_lq.mp4
+  # camera_dev_no: 2
+  camera_dev_no: /home/vpapaspy/Desktop/2fish_exps/exp2_lq.mp4
   camera_px_width: 512
   camera_px_height: 512
   # pix2mm: 1.002142315
