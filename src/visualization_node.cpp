@@ -28,8 +28,9 @@ protected:
     {
         try {
             cv::Mat frame = cv_bridge::toCvShare(msg, "mono8")->image;
+            cv::cvtColor(frame, frame, cv::COLOR_GRAY2BGR);
 
-            _fi.draw_all(frame);
+            _fi.draw_all(frame, _individual_poses, _robot_poses);
 
             cv::imshow("BOBI Framework", frame);
             cv::waitKey(30);

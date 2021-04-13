@@ -14,7 +14,8 @@ namespace bobi {
     public:
         TrajectoryIdentification(std::shared_ptr<ros::NodeHandle> nh, size_t matrix_len = 15)
             : _nh(nh),
-              _matrix_len(matrix_len)
+              _matrix_len(matrix_len),
+              _filter(new FilteringMethodBase())
         {
             // Pose subscribers
             _naive_poses_sub = _nh->subscribe("naive_poses", 10, &TrajectoryIdentification::naive_pose_cb, this);
@@ -23,31 +24,36 @@ namespace bobi {
 
         std::vector<bobi_msgs::PoseStamped> filter()
         {
-            _filter->operator()(_filtered_pose_matrix, _filtered_robot_pose_matrix);
-            return _filtered_pose_matrix.front();
+            if (_filtered_pose_list.size()) {
+                _filter->operator()(_filtered_pose_list, _filtered_robot_pose_list);
+                return _filtered_pose_list.front();
+            }
+            else {
+                return std::vector<bobi_msgs::PoseStamped>();
+            }
         }
 
     protected:
         void naive_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
         {
-            if (_filtered_pose_matrix.size() > _matrix_len) {
-                _filtered_pose_matrix.pop_back();
+            if (_filtered_pose_list.size() > _matrix_len) {
+                _filtered_pose_list.pop_back();
             }
-            _filtered_pose_matrix.push_front(pose_vec_ptr->poses);
+            _filtered_pose_list.push_front(pose_vec_ptr->poses);
         }
 
         void robot_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
         {
-            if (_filtered_robot_pose_matrix.size() > _matrix_len) {
-                _filtered_robot_pose_matrix.pop_back();
+            if (_filtered_robot_pose_list.size() > _matrix_len) {
+                _filtered_robot_pose_list.pop_back();
             }
-            _filtered_robot_pose_matrix.push_front(pose_vec_ptr->poses);
+            _filtered_robot_pose_list.push_front(pose_vec_ptr->poses);
         }
 
         std::shared_ptr<FilteringMethodBase> _filter;
         size_t _matrix_len;
-        AgentPoseList _filtered_pose_matrix;
-        AgentPoseList _filtered_robot_pose_matrix;
+        AgentPoseList _filtered_pose_list;
+        AgentPoseList _filtered_robot_pose_list;
 
         std::shared_ptr<ros::NodeHandle> _nh;
         ros::Subscriber _naive_poses_sub;

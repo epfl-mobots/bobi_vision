@@ -1,0 +1,8 @@
+<launch>
+
+    <arg name="ns" default="/" />
+    <group ns="$(arg ns)">
+        <node name="trajectory_identification_node" pkg="bobi_vision" type="trajectory_identification_node" output="screen"/>
+    </group>
+
+</launch>

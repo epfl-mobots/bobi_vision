@@ -6,7 +6,8 @@
 
         <include file="$(find bobi_vision)/launch/individual_tracker.launch" />
         <include file="$(find bobi_vision)/launch/robot_tracker.launch" />
-        <include file="$(find bobi_vision)/launch/visualization.launch" />
+        <include file="$(find bobi_vision)/launch/trajectory_identification.launch" />
+        <!-- <include file="$(find bobi_vision)/launch/visualization.launch" /> -->
     </group>
 
 </launch>
