@@ -42,7 +42,7 @@ namespace bobi {
                                                                                                                           _annotate_frame(annotate_frame)
         {
             dynamic_reconfigure::Server<bobi_vision::BlobDetectorConfig>::CallbackType f;
-            f = boost::bind(&BlobDetector::blobDetectorConfigCallback, this, _1, _2);
+            f = boost::bind(&BlobDetector::_config_cb, this, _1, _2);
             _bd_config_server.setCallback(f);
         }
 
@@ -200,7 +200,7 @@ namespace bobi {
         defaults::BlobDetectorConfig _config;
 
     private:
-        void blobDetectorConfigCallback(bobi_vision::BlobDetectorConfig& config, uint32_t level)
+        void _config_cb(bobi_vision::BlobDetectorConfig& config, uint32_t level)
         {
             ROS_INFO("Updated config");
             _config.num_agents = config.num_agents;

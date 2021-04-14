@@ -26,6 +26,7 @@ find_package(OpenCV REQUIRED)
 
 generate_dynamic_reconfigure_options(
   config/BlobDetector.cfg
+  config/TrajectoryIdentificationConfig.cfg
 )
 
 catkin_package(
