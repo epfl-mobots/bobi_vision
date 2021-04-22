@@ -13,12 +13,8 @@
 
 using namespace bobi;
 
-bool is_number(const std::string& s)
-{
-    return !s.empty() && std::find_if(s.begin(), s.end(), [](unsigned char c) { return !std::isdigit(c); }) == s.end();
-}
-
 struct TopCameraConfig {
+    bool using_file = false;
     std::string camera_dev_no = "2";
     int camera_px_width = 512;
     int camera_px_height = 512;
@@ -34,10 +30,11 @@ TopCameraConfig get_camera_config(const ros::NodeHandle& nh)
 {
     // configuration for the top camera
     TopCameraConfig top_camera;
+    nh.param<bool>("top_camera/using_file", top_camera.using_file, top_camera.using_file);
     nh.param<std::string>("top_camera/camera_dev_no", top_camera.camera_dev_no, top_camera.camera_dev_no);
     nh.param<int>("top_camera/camera_px_width", top_camera.camera_px_width, top_camera.camera_px_width);
     nh.param<int>("top_camera/camera_px_height", top_camera.camera_px_height, top_camera.camera_px_height);
-    nh.param<int>("top_camera/fps", top_camera.fps, 30);
+    nh.param<int>("top_camera/fps", top_camera.fps, top_camera.fps);
     return top_camera;
 }
 
@@ -53,12 +50,13 @@ int main(int argc, char** argv)
     // set opencv stream
     std::string medium;
     cv::VideoCapture camera;
-    if (is_number(camera_cfg.camera_dev_no)) {
+
+    if (camera_cfg.using_file) {
         camera = cv::VideoCapture(camera_cfg.camera_dev_no);
         medium = "Using video file: " + camera_cfg.camera_dev_no;
     }
     else {
-        camera = cv::VideoCapture(camera_cfg.camera_dev_no, cv::CAP_GSTREAMER);
+        camera = cv::VideoCapture(std::stoi(camera_cfg.camera_dev_no), cv::CAP_GSTREAMER);
         medium = "Using camera device: " + camera_cfg.camera_dev_no;
     }
     camera.set(cv::CAP_PROP_FRAME_WIDTH, camera_cfg.camera_px_width);
