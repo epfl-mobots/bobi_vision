@@ -18,12 +18,12 @@ struct TopCameraConfig {
     std::string camera_dev_no = "2";
     int camera_px_width = 512;
     int camera_px_height = 512;
-    // pix2mm: 1.002142315;
-    // annotate_image= true;
-    // camera_matrix= [666.82179448,   0.,         340.53770393, 0., 665.59446379,
-    // 252.23375323, 0., 0., 1.]; distortion_coeffs= [2.54816200e-02,
-    // -9.99858067e-01,  2.86687084e-03, -3.54082085e-04, 3.05316286e+00];
     int fps = 30;
+    std::vector<double> camera_matrix = {
+        783.55455, 0., 256.11758,
+        0., 783.21002, 262.14992,
+        0., 0., 1.};
+    std::vector<double> distortion_coeffs = {-0.176236, 0.418800, 0.005023, -0.002432, 0.000000};
 };
 
 TopCameraConfig get_camera_config(const ros::NodeHandle& nh)
@@ -35,6 +35,8 @@ TopCameraConfig get_camera_config(const ros::NodeHandle& nh)
     nh.param<int>("top_camera/camera_px_width", top_camera.camera_px_width, top_camera.camera_px_width);
     nh.param<int>("top_camera/camera_px_height", top_camera.camera_px_height, top_camera.camera_px_height);
     nh.param<int>("top_camera/fps", top_camera.fps, top_camera.fps);
+    nh.param<std::vector<double>>("top_camera/camera_matrix", top_camera.camera_matrix, top_camera.camera_matrix);
+    nh.param<std::vector<double>>("top_camera/distortion_coefficients", top_camera.distortion_coeffs, top_camera.distortion_coeffs);
     return top_camera;
 }
 
@@ -70,6 +72,7 @@ int main(int argc, char** argv)
 
     // publisher for the image_transport wrapped image
     image_transport::Publisher raw_image_pub = it.advertise("top_camera/image_raw", 1);
+    image_transport::Publisher undistorted_image_pub = it.advertise("top_camera/image_undistorted", 1);
     image_transport::Publisher blob_pub = it.advertise("top_camera/image_blobs", 1);
 
     // pose publisher
@@ -77,11 +80,24 @@ int main(int argc, char** argv)
 
     defaults::BlobDetectorConfig cfg;
     BlobDetector bd(cfg, true);
+
+    cv::Mat distortion_coeffs = cv::Mat(1, 5, CV_64F);
+    memcpy(distortion_coeffs.data, camera_cfg.distortion_coeffs.data(), camera_cfg.distortion_coeffs.size() * sizeof(double));
+    cv::Mat camera_mat = cv::Mat(3, 3, CV_64F);
+    memcpy(camera_mat.data, camera_cfg.camera_matrix.data(), camera_cfg.camera_matrix.size() * sizeof(double));
+
+    cv::Rect roi;
+    cv::Mat new_camera_mat = cv::getOptimalNewCameraMatrix(camera_mat, distortion_coeffs, cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), 1., cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), &roi);
+
     cv::Mat frame;
+    cv::Mat frame_und;
     ros::Rate loop_rate(30); // TODO: sync with lowest fps value?
     while (ros::ok()) {
         camera >> frame;
         cv::cvtColor(frame, frame, cv::COLOR_BGR2GRAY); // enforce image_transport compatible grayscale
+
+        cv::undistort(frame, frame_und, camera_mat, distortion_coeffs, new_camera_mat);
+        frame_und = frame_und(roi);
 
         std_msgs::Header header;
         header.stamp = ros::Time::now();
@@ -90,8 +106,11 @@ int main(int argc, char** argv)
         sensor_msgs::ImagePtr raw_image_ptr = cv_bridge::CvImage(header, "mono8", frame).toImageMsg();
         raw_image_pub.publish(raw_image_ptr);
 
+        sensor_msgs::ImagePtr undistorted_image_ptr = cv_bridge::CvImage(header, "mono8", frame_und).toImageMsg();
+        undistorted_image_pub.publish(undistorted_image_ptr);
+
         // detect individuals
-        std::vector<cv::Point3f> poses2d = bd.detect(frame);
+        std::vector<cv::Point3f> poses2d = bd.detect(frame_und);
 
         // publish the poses of the individuals that were detected
         bobi_msgs::PoseVec pv;

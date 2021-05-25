@@ -1,5 +1,5 @@
-#ifndef FILTERING_METHOD_BASE_HPP
-#define FILTERING_METHOD_BASE_HPP
+#ifndef BOBI_FILTERING_METHOD_BASE_HPP
+#define BOBI_FILTERING_METHOD_BASE_HPP
 
 #include <bobi_msgs/PoseStamped.h>
 
@@ -9,9 +9,20 @@ namespace bobi {
         using AgentPoseList = std::list<std::vector<bobi_msgs::PoseStamped>>;
 
     public:
-        virtual void operator()(AgentPoseList& individual_poses, AgentPoseList& robot_poses)
+        FilteringMethodBase()
+        {
+            std::srand(time(NULL));
+        }
+
+        virtual void operator()(
+            AgentPoseList& individual_poses,
+            AgentPoseList& robot_poses,
+            size_t num_agents,
+            size_t num_robots)
         {
         }
+
+    protected:
     };
 } // namespace bobi
 

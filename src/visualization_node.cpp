@@ -18,13 +18,14 @@ public:
         : _nh(nh),
           _it(*_nh)
     {
-        _frame_sub = _it.subscribe("top_camera/image_raw", 1, &RawImageWrapper::raw_image_cb, this);
+        _frame_sub = _it.subscribe("top_camera/image_undistorted", 1, &RawImageWrapper::und_image_cb, this);
+        _bottom_frame_sub = _it.subscribe("bottom_camera/image_undistorted", 1, &RawImageWrapper::bottom_und_image_cb, this);
         _poses_sub = _nh->subscribe("filtered_poses", 10, &RawImageWrapper::filtered_pose_cb, this);
         _robot_poses_sub = _nh->subscribe("robot_poses", 10, &RawImageWrapper::robot_pose_cb, this);
     }
 
 protected:
-    void raw_image_cb(const sensor_msgs::ImageConstPtr& msg)
+    void und_image_cb(const sensor_msgs::ImageConstPtr& msg)
     {
         try {
             cv::Mat frame = cv_bridge::toCvShare(msg, "mono8")->image;
@@ -32,11 +33,26 @@ protected:
 
             _fi.draw_all(frame, _individual_poses, _robot_poses);
 
-            cv::imshow("BOBI Framework", frame);
-            cv::waitKey(30);
+            cv::imshow("Individual Tracking", frame);
+            cv::waitKey(10);
         }
         catch (cv_bridge::Exception& e) {
             ROS_ERROR("Could not convert from '%s' to 'mono8'.", msg->encoding.c_str());
+        }
+    }
+
+    void bottom_und_image_cb(const sensor_msgs::ImageConstPtr& msg)
+    {
+        try {
+            cv::Mat frame = cv_bridge::toCvShare(msg, "bgr8")->image;
+
+            _fi.draw_all(frame, _individual_poses, _robot_poses);
+
+            cv::imshow("Robot Tracking", frame);
+            cv::waitKey(10);
+        }
+        catch (cv_bridge::Exception& e) {
+            ROS_ERROR("Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
         }
     }
 
@@ -57,31 +73,18 @@ protected:
     std::vector<bobi_msgs::PoseStamped> _robot_poses;
 
     image_transport::Subscriber _frame_sub;
+    image_transport::Subscriber _bottom_frame_sub;
     ros::Subscriber _poses_sub;
     ros::Subscriber _robot_poses_sub;
 
     FrameInfo _fi;
 };
 
-void raw_image_cb(const sensor_msgs::ImageConstPtr& msg)
-{
-    try {
-        cv::Mat frame = cv_bridge::toCvShare(msg, "mono8")->image;
-
-        cv::imshow("BOBI Framework", frame);
-        cv::waitKey(30);
-    }
-    catch (cv_bridge::Exception& e) {
-        ROS_ERROR("Could not convert from '%s' to 'mono8'.", msg->encoding.c_str());
-    }
-}
-
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "visualization_node");
     std::shared_ptr<ros::NodeHandle> nh(new ros::NodeHandle());
 
-    cv::namedWindow("BOBI Framework");
     RawImageWrapper riw(nh);
 
     ros::Rate loop_rate(30);

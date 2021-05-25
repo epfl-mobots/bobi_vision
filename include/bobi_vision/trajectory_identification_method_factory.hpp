@@ -1,9 +1,10 @@
-#ifndef TRAJECTORY_IDENTIFICATION_METHOD_FACTORY_HPP
-#define TRAJECTORY_IDENTIFICATION_METHOD_FACTORY_HPP
+#ifndef BOBI_TRAJECTORY_IDENTIFICATION_METHOD_FACTORY_HPP
+#define BOBI_TRAJECTORY_IDENTIFICATION_METHOD_FACTORY_HPP
 
 #include <bobi_vision/TrajectoryIdentificationConfig.h>
 
 #include <bobi_vision/filtering_method_base.hpp>
+#include <bobi_vision/nearest_centroid.hpp>
 
 namespace bobi {
     class TrajectoryIdentificationMethodFactory {
@@ -17,11 +18,11 @@ namespace bobi {
 
             case bobi_vision::TrajectoryIdentification_None:
                 new_filter = std::make_shared<FilteringMethodBase>(FilteringMethodBase());
-                success = false;
                 break;
 
-                // case bobi_vision::TrajectoryIdentification_NearestCentroids:
-                //     break;
+            case bobi_vision::TrajectoryIdentification_NearestCentroids:
+                new_filter = std::make_shared<NearestCentroid>(NearestCentroid());
+                break;
 
                 // case bobi_vision::TrajectoryIdentification_MotionModel:
                 //     break;
