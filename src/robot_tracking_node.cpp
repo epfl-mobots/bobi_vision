@@ -86,7 +86,7 @@ int main(int argc, char** argv)
     ros::Rate loop_rate(30); // TODO: sync with lowest fps value?
     while (ros::ok()) {
         camera >> frame;
-        cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
+        // cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
 
         cv::undistort(frame, frame_und, camera_mat, distortion_coeffs, new_camera_mat);
         frame_und = frame_und(roi);
