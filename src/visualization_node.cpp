@@ -22,6 +22,13 @@ public:
         _bottom_frame_sub = _it.subscribe("bottom_camera/image_undistorted", 1, &RawImageWrapper::bottom_und_image_cb, this);
         _poses_sub = _nh->subscribe("filtered_poses", 10, &RawImageWrapper::filtered_pose_cb, this);
         _robot_poses_sub = _nh->subscribe("robot_poses", 10, &RawImageWrapper::robot_pose_cb, this);
+
+        _nh->param<double>("top_camera/pix2m", _top_pix2m, 0.001475);
+        _nh->param<double>("bottom_camera/pix2m", _bottom_pix2m, 0.002681818182);
+        _fi.set_top_pix2m(_top_pix2m);
+        _fi.set_bottom_pix2m(_bottom_pix2m);
+
+        std::cout << _top_pix2m << " " << _bottom_pix2m << " from ctor" << std::endl;
     }
 
 protected:
@@ -76,6 +83,9 @@ protected:
     image_transport::Subscriber _bottom_frame_sub;
     ros::Subscriber _poses_sub;
     ros::Subscriber _robot_poses_sub;
+
+    double _top_pix2m;
+    double _bottom_pix2m;
 
     FrameInfo _fi;
 };

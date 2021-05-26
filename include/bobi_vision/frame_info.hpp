@@ -87,6 +87,8 @@ namespace bobi {
 
             for (size_t i = 0; i < poses.size(); ++i) {
                 bobi_msgs::PoseStamped pose = poses[i];
+                pose.pose.xyz.x /= _top_pix2m;
+                pose.pose.xyz.y /= _top_pix2m;
 
                 float offset = 13.;
                 float base_coef = 4.;
@@ -117,6 +119,16 @@ namespace bobi {
             }
         }
 
+        void set_top_pix2m(double coeff)
+        {
+            _top_pix2m = coeff;
+        }
+
+        void set_bottom_pix2m(double coeff)
+        {
+            _bottom_pix2m = coeff;
+        }
+
     protected:
         void _config_cb(bobi_vision::BlobDetectorConfig& config, uint32_t level)
         {
@@ -144,6 +156,9 @@ namespace bobi {
         double _top_fps;
         double _bottom_fps;
         std_msgs::Header _prev_header;
+
+        double _top_pix2m;
+        double _bottom_pix2m;
     };
 } // namespace bobi
 

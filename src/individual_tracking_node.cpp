@@ -19,6 +19,7 @@ struct TopCameraConfig {
     int camera_px_width = 512;
     int camera_px_height = 512;
     int fps = 30;
+    double pix2m = 0.001475;
     std::vector<double> camera_matrix = {
         783.55455, 0., 256.11758,
         0., 783.21002, 262.14992,
@@ -35,6 +36,7 @@ TopCameraConfig get_camera_config(const ros::NodeHandle& nh)
     nh.param<int>("top_camera/camera_px_width", top_camera.camera_px_width, top_camera.camera_px_width);
     nh.param<int>("top_camera/camera_px_height", top_camera.camera_px_height, top_camera.camera_px_height);
     nh.param<int>("top_camera/fps", top_camera.fps, top_camera.fps);
+    nh.param<double>("top_camera/pix2m", top_camera.pix2m, top_camera.pix2m);
     nh.param<std::vector<double>>("top_camera/camera_matrix", top_camera.camera_matrix, top_camera.camera_matrix);
     nh.param<std::vector<double>>("top_camera/distortion_coefficients", top_camera.distortion_coeffs, top_camera.distortion_coeffs);
     return top_camera;
@@ -117,8 +119,8 @@ int main(int argc, char** argv)
         for (const cv::Point3f& pose2d : poses2d) {
             bobi_msgs::PoseStamped pose;
             pose.header = header;
-            pose.pose.xyz.x = pose2d.x;
-            pose.pose.xyz.y = pose2d.y;
+            pose.pose.xyz.x = pose2d.x * camera_cfg.pix2m;
+            pose.pose.xyz.y = pose2d.y * camera_cfg.pix2m;
             pose.pose.rpy.yaw = pose2d.z;
             pv.poses.push_back(pose);
         }
