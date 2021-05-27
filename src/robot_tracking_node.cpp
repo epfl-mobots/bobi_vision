@@ -7,6 +7,8 @@
 #include <bobi_msgs/PoseStamped.h>
 #include <bobi_msgs/PoseVec.h>
 
+#include <bobi_vision/colour_detector.hpp>
+
 struct BottomCameraConfig {
     bool using_file = false;
     std::string camera_dev_no = "3";
@@ -18,6 +20,7 @@ struct BottomCameraConfig {
         0., 354.95442, 234.85626,
         0., 0., 1.};
     std::vector<double> distortion_coeffs = {-0.286276, 0.063449, 0.000008, -0.000346, 0.000000};
+    std::vector<cv::Scalar> led_colours;
 };
 
 BottomCameraConfig get_camera_config(const ros::NodeHandle& nh)
@@ -31,6 +34,17 @@ BottomCameraConfig get_camera_config(const ros::NodeHandle& nh)
     nh.param<int>("bottom_camera/fps", bottom_camera.fps, bottom_camera.fps);
     nh.param<std::vector<double>>("bottom_camera/camera_matrix", bottom_camera.camera_matrix, bottom_camera.camera_matrix);
     nh.param<std::vector<double>>("bottom_camera/distortion_coefficients", bottom_camera.distortion_coeffs, bottom_camera.distortion_coeffs);
+
+    std::vector<int> flat_led_colours;
+    nh.param<std::vector<int>>("bottom_camera/led_colours", flat_led_colours, {});
+    for (size_t i = 0; i < flat_led_colours.size(); i += 3) {
+        bottom_camera.led_colours.push_back(
+            cv::Scalar(
+                flat_led_colours[0],
+                flat_led_colours[1],
+                flat_led_colours[2]));
+    }
+
     return bottom_camera;
 }
 
@@ -81,15 +95,18 @@ int main(int argc, char** argv)
     cv::Rect roi;
     cv::Mat new_camera_mat = cv::getOptimalNewCameraMatrix(camera_mat, distortion_coeffs, cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), 1., cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), &roi);
 
+    bobi::ColourDetector cd(camera_cfg.led_colours);
+
     cv::Mat frame;
     cv::Mat frame_und;
     ros::Rate loop_rate(30); // TODO: sync with lowest fps value?
     while (ros::ok()) {
         camera >> frame;
-        // cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
 
         cv::undistort(frame, frame_und, camera_mat, distortion_coeffs, new_camera_mat);
         frame_und = frame_und(roi);
+
+        cd.detect(frame_und); // Detect colour blobs
 
         std_msgs::Header header;
         header.stamp = ros::Time::now();
