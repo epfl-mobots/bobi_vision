@@ -14,6 +14,8 @@ namespace bobi {
     class FrameInfo {
     public:
         FrameInfo()
+            : _top_fps(0.),
+              _bottom_fps(0.)
         {
             _prev_time = ros::Time::now();
 
@@ -39,7 +41,7 @@ namespace bobi {
 
             {
                 std::stringstream stream;
-                stream << std::fixed << std::setprecision(1) << 1 / dt;
+                stream << std::fixed << std::setprecision(1) << 1. / dt;
                 cv::putText(frame,
                     "FPS (processing): " + stream.str(),
                     cv::Point(frame.size().width * 0.03, frame.size().height * 0.05),
@@ -81,8 +83,11 @@ namespace bobi {
             std::vector<bobi_msgs::PoseStamped> poses)
         {
             if (poses.size() > 0) {
-                _top_fps = 1. / ros::Duration(poses[0].header.stamp - _prev_header.stamp).toSec();
-                _prev_header = poses[0].header;
+                double cur_fps = 1. / ros::Duration(poses[0].header.stamp - _prev_top_header.stamp).toSec();
+                if (cur_fps != std::numeric_limits<double>::infinity()) {
+                    _top_fps = cur_fps;
+                }
+                _prev_top_header = poses[0].header;
             }
 
             for (size_t i = 0; i < poses.size(); ++i) {
@@ -114,8 +119,11 @@ namespace bobi {
             std::vector<bobi_msgs::PoseStamped> poses)
         {
             if (poses.size() > 0) {
-                _bottom_fps = 1. / ros::Duration(poses[0].header.stamp - _prev_header.stamp).toSec();
-                _prev_header = poses[0].header;
+                double cur_fps = 1. / ros::Duration(poses[0].header.stamp - _prev_bottom_header.stamp).toSec();
+                if (cur_fps != std::numeric_limits<double>::infinity()) {
+                    _bottom_fps = cur_fps;
+                }
+                _prev_bottom_header = poses[0].header;
             }
 
             for (size_t i = 0; i < poses.size(); ++i) {
@@ -178,7 +186,8 @@ namespace bobi {
 
         double _top_fps;
         double _bottom_fps;
-        std_msgs::Header _prev_header;
+        std_msgs::Header _prev_top_header;
+        std_msgs::Header _prev_bottom_header;
 
         double _top_pix2m;
         double _bottom_pix2m;

@@ -103,10 +103,10 @@ int main(int argc, char** argv)
     cv::Mat frame_und;
     ros::Rate loop_rate(30); // TODO: sync with lowest fps value?
     while (ros::ok()) {
-        camera >> frame;
-
         std_msgs::Header header;
         header.stamp = ros::Time::now();
+
+        camera >> frame;
 
         cv::undistort(frame, frame_und, camera_mat, distortion_coeffs, new_camera_mat);
         frame_und = frame_und(roi);

@@ -95,14 +95,14 @@ int main(int argc, char** argv)
     cv::Mat frame_und;
     ros::Rate loop_rate(30); // TODO: sync with lowest fps value?
     while (ros::ok()) {
+        std_msgs::Header header;
+        header.stamp = ros::Time::now();
+
         camera >> frame;
         cv::cvtColor(frame, frame, cv::COLOR_BGR2GRAY); // enforce image_transport compatible grayscale
 
         cv::undistort(frame, frame_und, camera_mat, distortion_coeffs, new_camera_mat);
         frame_und = frame_und(roi);
-
-        std_msgs::Header header;
-        header.stamp = ros::Time::now();
 
         // detect individuals
         std::vector<cv::Point3f> poses2d = bd.detect(frame_und);
