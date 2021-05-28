@@ -61,9 +61,6 @@ namespace bobi {
                     return cv::contourArea(contours[lhs], false) > cv::contourArea(contours[rhs], false);
                 });
 
-                cv::imshow("binary", binary);
-                cv::waitKey(10);
-
                 if (contours.size() != 2) {
                     std::cout << contours.size() << std::endl;
                 }
