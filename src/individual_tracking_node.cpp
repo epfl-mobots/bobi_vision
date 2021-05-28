@@ -104,13 +104,6 @@ int main(int argc, char** argv)
         std_msgs::Header header;
         header.stamp = ros::Time::now();
 
-        // publish raw image
-        sensor_msgs::ImagePtr raw_image_ptr = cv_bridge::CvImage(header, "mono8", frame).toImageMsg();
-        raw_image_pub.publish(raw_image_ptr);
-
-        sensor_msgs::ImagePtr undistorted_image_ptr = cv_bridge::CvImage(header, "mono8", frame_und).toImageMsg();
-        undistorted_image_pub.publish(undistorted_image_ptr);
-
         // detect individuals
         std::vector<cv::Point3f> poses2d = bd.detect(frame_und);
 
@@ -129,6 +122,13 @@ int main(int argc, char** argv)
         // publish the image that contains the filtered image
         sensor_msgs::ImagePtr blob_image_ptr = cv_bridge::CvImage(header, "mono8", bd.get_blob_frame()).toImageMsg();
         blob_pub.publish(blob_image_ptr);
+
+        // publish raw image
+        sensor_msgs::ImagePtr raw_image_ptr = cv_bridge::CvImage(header, "mono8", frame).toImageMsg();
+        raw_image_pub.publish(raw_image_ptr);
+
+        sensor_msgs::ImagePtr undistorted_image_ptr = cv_bridge::CvImage(header, "mono8", frame_und).toImageMsg();
+        undistorted_image_pub.publish(undistorted_image_ptr);
 
         ros::spinOnce();
         loop_rate.sleep();

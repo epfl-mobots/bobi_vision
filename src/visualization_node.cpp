@@ -27,8 +27,6 @@ public:
         _nh->param<double>("bottom_camera/pix2m", _bottom_pix2m, 0.002681818182);
         _fi.set_top_pix2m(_top_pix2m);
         _fi.set_bottom_pix2m(_bottom_pix2m);
-
-        std::cout << _top_pix2m << " " << _bottom_pix2m << " from ctor" << std::endl;
     }
 
 protected:

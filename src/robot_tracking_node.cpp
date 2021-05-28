@@ -15,6 +15,7 @@ struct BottomCameraConfig {
     int camera_px_width = 640;
     int camera_px_height = 480;
     int fps = 30;
+    double pix2m = 0.002681818182;
     std::vector<double> camera_matrix = {
         354.63806, 0., 325.08967,
         0., 354.95442, 234.85626,
@@ -32,6 +33,7 @@ BottomCameraConfig get_camera_config(const ros::NodeHandle& nh)
     nh.param<int>("bottom_camera/camera_px_width", bottom_camera.camera_px_width, bottom_camera.camera_px_width);
     nh.param<int>("bottom_camera/camera_px_height", bottom_camera.camera_px_height, bottom_camera.camera_px_height);
     nh.param<int>("bottom_camera/fps", bottom_camera.fps, bottom_camera.fps);
+    nh.param<double>("bottom_camera/pix2m", bottom_camera.pix2m, bottom_camera.pix2m);
     nh.param<std::vector<double>>("bottom_camera/camera_matrix", bottom_camera.camera_matrix, bottom_camera.camera_matrix);
     nh.param<std::vector<double>>("bottom_camera/distortion_coefficients", bottom_camera.distortion_coeffs, bottom_camera.distortion_coeffs);
 
@@ -103,13 +105,26 @@ int main(int argc, char** argv)
     while (ros::ok()) {
         camera >> frame;
 
+        std_msgs::Header header;
+        header.stamp = ros::Time::now();
+
         cv::undistort(frame, frame_und, camera_mat, distortion_coeffs, new_camera_mat);
         frame_und = frame_und(roi);
 
-        cd.detect(frame_und); // Detect colour blobs
+        // detect robots
+        std::vector<cv::Point3f> poses2d = cd.detect(frame_und); // Detect colour blobs
 
-        std_msgs::Header header;
-        header.stamp = ros::Time::now();
+        // publish the poses of the individuals that were detected
+        bobi_msgs::PoseVec pv;
+        for (const cv::Point3f& pose2d : poses2d) {
+            bobi_msgs::PoseStamped pose;
+            pose.header = header;
+            pose.pose.xyz.x = pose2d.x * camera_cfg.pix2m;
+            pose.pose.xyz.y = pose2d.y * camera_cfg.pix2m;
+            pose.pose.rpy.yaw = pose2d.z;
+            pv.poses.push_back(pose);
+        }
+        pose_pub.publish(pv);
 
         // publish raw image
         sensor_msgs::ImagePtr raw_image_ptr = cv_bridge::CvImage(header, "bgr8", frame).toImageMsg();
@@ -117,9 +132,6 @@ int main(int argc, char** argv)
 
         sensor_msgs::ImagePtr undistorted_image_ptr = cv_bridge::CvImage(header, "bgr8", frame_und).toImageMsg();
         undistorted_image_pub.publish(undistorted_image_ptr);
-
-        bobi_msgs::PoseVec pv;
-        pose_pub.publish(pv);
 
         ros::spinOnce();
         loop_rate.sleep();
