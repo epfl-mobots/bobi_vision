@@ -9,6 +9,7 @@
 #include <bobi_msgs/PoseVec.h>
 
 #include <iostream>
+#include <map>
 
 using namespace bobi;
 
@@ -16,7 +17,9 @@ class RawImageWrapper {
 public:
     RawImageWrapper(std::shared_ptr<ros::NodeHandle> nh)
         : _nh(nh),
-          _it(*_nh)
+          _it(*_nh),
+          _window_titles({{"top", "Individual Tracking"}, {"bottom", "Robot Tracking"}}),
+          _fi(_window_titles)
     {
         _frame_sub = _it.subscribe("top_camera/image_undistorted", 1, &RawImageWrapper::und_image_cb, this);
         _bottom_frame_sub = _it.subscribe("bottom_camera/image_undistorted", 1, &RawImageWrapper::bottom_und_image_cb, this);
@@ -36,9 +39,9 @@ protected:
             cv::Mat frame = cv_bridge::toCvShare(msg, "mono8")->image;
             cv::cvtColor(frame, frame, cv::COLOR_GRAY2BGR);
 
-            _fi.draw_all(frame, _individual_poses, _robot_poses);
+            _fi.draw_all(frame, _individual_poses, _robot_poses, bobi::CameraLocation::TOP);
 
-            cv::imshow("Individual Tracking", frame);
+            cv::imshow(_window_titles["top"].c_str(), frame);
             cv::waitKey(10);
         }
         catch (cv_bridge::Exception& e) {
@@ -51,9 +54,9 @@ protected:
         try {
             cv::Mat frame = cv_bridge::toCvShare(msg, "bgr8")->image;
 
-            _fi.draw_all(frame, _individual_poses, _robot_poses);
+            _fi.draw_all(frame, _individual_poses, _robot_poses, bobi::CameraLocation::BOTTOM);
 
-            cv::imshow("Robot Tracking", frame);
+            cv::imshow(_window_titles["bottom"].c_str(), frame);
             cv::waitKey(10);
         }
         catch (cv_bridge::Exception& e) {
@@ -84,6 +87,8 @@ protected:
 
     double _top_pix2m;
     double _bottom_pix2m;
+
+    std::map<std::string, std::string> _window_titles;
 
     FrameInfo _fi;
 };

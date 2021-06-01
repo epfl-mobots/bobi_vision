@@ -3,6 +3,7 @@
 
 #include <ros/ros.h>
 #include <opencv2/opencv.hpp>
+#include <opencv2/highgui.hpp>
 #include <bobi_msgs/PoseStamped.h>
 
 #include <dynamic_reconfigure/server.h>
@@ -11,27 +12,41 @@
 #include <std_msgs/Header.h>
 
 namespace bobi {
+    enum CameraLocation {
+        NA,
+        TOP,
+        BOTTOM
+    };
     class FrameInfo {
     public:
-        FrameInfo()
+        FrameInfo(const std::map<std::string, std::string>& window_titles)
             : _top_fps(0.),
-              _bottom_fps(0.)
+              _bottom_fps(0.),
+              _window_titles(window_titles)
         {
             _prev_time = ros::Time::now();
 
             dynamic_reconfigure::Server<bobi_vision::BlobDetectorConfig>::CallbackType f;
             f = boost::bind(&FrameInfo::_config_cb, this, _1, _2);
             _config_server.setCallback(f);
+
+            cv::namedWindow(_window_titles["top"], cv::WINDOW_AUTOSIZE);
+            cv::namedWindow(_window_titles["bottom"], cv::WINDOW_AUTOSIZE);
+            cv::setMouseCallback(_window_titles["top"], _top_cam_mouse_cb, this);
+            cv::setMouseCallback(_window_titles["bottom"], _bottom_cam_mouse_cb, this);
         }
 
         void draw_all(
             cv::Mat& frame,
             std::vector<bobi_msgs::PoseStamped> individual_poses,
-            std::vector<bobi_msgs::PoseStamped> robot_poses)
+            std::vector<bobi_msgs::PoseStamped> robot_poses,
+            CameraLocation camera_loc = CameraLocation::NA)
         {
             draw_fps(frame);
             draw_poses(frame, individual_poses);
             draw_robot_poses(frame, robot_poses);
+            draw_mouse_position(frame, camera_loc);
+            draw_center(frame);
         }
 
         void draw_fps(cv::Mat& frame)
@@ -47,7 +62,7 @@ namespace bobi {
                     cv::Point(frame.size().width * 0.03, frame.size().height * 0.05),
                     cv::FONT_HERSHEY_DUPLEX,
                     0.5,
-                    CV_RGB(0, 0, 0),
+                    CV_RGB(200, 0, 0),
                     2);
             }
 
@@ -59,7 +74,7 @@ namespace bobi {
                     cv::Point(frame.size().width * 0.03, frame.size().height * 0.09),
                     cv::FONT_HERSHEY_DUPLEX,
                     0.5,
-                    CV_RGB(0, 0, 0),
+                    CV_RGB(200, 0, 0),
                     2);
             }
 
@@ -71,16 +86,14 @@ namespace bobi {
                     cv::Point(frame.size().width * 0.03, frame.size().height * 0.13),
                     cv::FONT_HERSHEY_DUPLEX,
                     0.5,
-                    CV_RGB(0, 0, 0),
+                    CV_RGB(200, 0, 0),
                     2);
             }
 
             _prev_time = now;
         }
 
-        void draw_poses(
-            cv::Mat& frame,
-            std::vector<bobi_msgs::PoseStamped> poses)
+        void draw_poses(cv::Mat& frame, std::vector<bobi_msgs::PoseStamped> poses)
         {
             if (poses.size() > 0) {
                 double cur_fps = 1. / ros::Duration(poses[0].header.stamp - _prev_top_header.stamp).toSec();
@@ -114,9 +127,7 @@ namespace bobi {
             }
         }
 
-        void draw_robot_poses(
-            cv::Mat& frame,
-            std::vector<bobi_msgs::PoseStamped> poses)
+        void draw_robot_poses(cv::Mat& frame, std::vector<bobi_msgs::PoseStamped> poses)
         {
             if (poses.size() > 0) {
                 double cur_fps = 1. / ros::Duration(poses[0].header.stamp - _prev_bottom_header.stamp).toSec();
@@ -150,6 +161,71 @@ namespace bobi {
             }
         }
 
+        void draw_mouse_position(cv::Mat& frame, const CameraLocation camera_loc)
+        {
+            switch (camera_loc) {
+            case CameraLocation::TOP: {
+                std::lock_guard<std::mutex> guard(_topw_mutex);
+
+                {
+                    std::stringstream stream;
+                    stream << _top_mouse_coords.first.x << ", " << _top_mouse_coords.first.y;
+                    cv::putText(frame,
+                        "Pixel(x, y): " + stream.str(),
+                        cv::Point(frame.size().width * 0.03, frame.size().height * 0.97),
+                        cv::FONT_HERSHEY_DUPLEX,
+                        0.5,
+                        CV_RGB(200, 0, 0),
+                        2);
+                }
+
+                {
+                    std::stringstream stream;
+                    stream << std::fixed << std::setprecision(2) << _top_mouse_coords.second.x << ", " << _top_mouse_coords.second.y;
+                    cv::putText(frame,
+                        "World(x, y): " + stream.str(),
+                        cv::Point(frame.size().width * 0.03, frame.size().height * 0.92),
+                        cv::FONT_HERSHEY_DUPLEX,
+                        0.5,
+                        CV_RGB(200, 0, 0),
+                        2);
+                }
+            } break;
+
+            case CameraLocation::BOTTOM: {
+                std::lock_guard<std::mutex> guard(_bottomw_mutex);
+
+                {
+                    std::stringstream stream;
+                    stream << _bottom_mouse_coords.first.x << ", " << _bottom_mouse_coords.first.y;
+                    cv::putText(frame,
+                        "Pixel(x, y): " + stream.str(),
+                        cv::Point(frame.size().width * 0.03, frame.size().height * 0.97),
+                        cv::FONT_HERSHEY_DUPLEX,
+                        0.5,
+                        CV_RGB(200, 0, 0),
+                        2);
+                }
+
+                {
+                    std::stringstream stream;
+                    stream << std::fixed << std::setprecision(2) << _bottom_mouse_coords.second.x << ", " << _bottom_mouse_coords.second.y;
+                    cv::putText(frame,
+                        "World(x, y): " + stream.str(),
+                        cv::Point(frame.size().width * 0.03, frame.size().height * 0.92),
+                        cv::FONT_HERSHEY_DUPLEX,
+                        0.5,
+                        CV_RGB(200, 0, 0),
+                        2);
+                }
+            } break;
+            }
+        }
+
+        void draw_center(cv::Mat& frame)
+        {
+        }
+
         void set_top_pix2m(double coeff)
         {
             _top_pix2m = coeff;
@@ -158,6 +234,24 @@ namespace bobi {
         void set_bottom_pix2m(double coeff)
         {
             _bottom_pix2m = coeff;
+        }
+
+        void set_top_mouse_coords(int x, int y)
+        {
+            std::lock_guard<std::mutex> guard(_topw_mutex);
+            _top_mouse_coords.first.x = x;
+            _top_mouse_coords.first.y = y;
+            _top_mouse_coords.second.x = x * _top_pix2m;
+            _top_mouse_coords.second.y = y * _top_pix2m;
+        }
+
+        void set_bottom_mouse_coords(int x, int y)
+        {
+            std::lock_guard<std::mutex> guard(_bottomw_mutex);
+            _bottom_mouse_coords.first.x = x;
+            _bottom_mouse_coords.first.y = y;
+            _bottom_mouse_coords.second.x = x * _bottom_pix2m;
+            _bottom_mouse_coords.second.y = y * _bottom_pix2m;
         }
 
     protected:
@@ -175,6 +269,22 @@ namespace bobi {
             }
         }
 
+        static void _top_cam_mouse_cb(int event, int x, int y, int flags, void* data)
+        {
+            FrameInfo* fi = static_cast<FrameInfo*>(data);
+            if (event == cv::EVENT_MOUSEMOVE) {
+                fi->set_top_mouse_coords(x, y);
+            }
+        }
+
+        static void _bottom_cam_mouse_cb(int event, int x, int y, int flags, void* data)
+        {
+            FrameInfo* fi = static_cast<FrameInfo*>(data);
+            if (event == cv::EVENT_MOUSEMOVE) {
+                fi->set_bottom_mouse_coords(x, y);
+            }
+        }
+
         dynamic_reconfigure::Server<bobi_vision::BlobDetectorConfig> _config_server;
 
         ros::Time _prev_time;
@@ -188,6 +298,12 @@ namespace bobi {
         double _bottom_fps;
         std_msgs::Header _prev_top_header;
         std_msgs::Header _prev_bottom_header;
+
+        std::map<std::string, std::string> _window_titles;
+        std::mutex _topw_mutex;
+        std::mutex _bottomw_mutex;
+        std::pair<cv::Point, cv::Point2f> _top_mouse_coords;
+        std::pair<cv::Point, cv::Point2f> _bottom_mouse_coords;
 
         double _top_pix2m;
         double _bottom_pix2m;
