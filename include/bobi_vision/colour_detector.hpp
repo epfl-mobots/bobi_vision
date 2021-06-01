@@ -6,8 +6,6 @@
 #include <ros/ros.h>
 #include <dynamic_reconfigure/server.h>
 
-#include <bobi_vision/ColourDetectorConfig.h>
-
 #include <numeric>
 
 namespace bobi {
