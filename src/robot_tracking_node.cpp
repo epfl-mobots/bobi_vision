@@ -9,6 +9,8 @@
 
 #include <bobi_vision/colour_detector.hpp>
 
+#include <cassert>
+
 struct BottomCameraConfig {
     bool using_file = false;
     std::string camera_dev_no = "3";
@@ -21,7 +23,8 @@ struct BottomCameraConfig {
         0., 354.95442, 234.85626,
         0., 0., 1.};
     std::vector<double> distortion_coeffs = {-0.286276, 0.063449, 0.000008, -0.000346, 0.000000};
-    std::vector<cv::Scalar> led_colours;
+    bobi::LedPairVec led_colours;
+    bobi::TuplePairVec hsv_thresholds;
 };
 
 BottomCameraConfig get_camera_config(const ros::NodeHandle& nh)
@@ -38,13 +41,33 @@ BottomCameraConfig get_camera_config(const ros::NodeHandle& nh)
     nh.param<std::vector<double>>("bottom_camera/distortion_coefficients", bottom_camera.distortion_coeffs, bottom_camera.distortion_coeffs);
 
     std::vector<int> flat_led_colours;
-    nh.param<std::vector<int>>("bottom_camera/led_colours", flat_led_colours, {});
-    for (size_t i = 0; i < flat_led_colours.size(); i += 3) {
+    nh.param<std::vector<int>>("bottom_camera/led_colours", flat_led_colours, flat_led_colours);
+    assert((flat_led_colours.size() % 6) == 0);
+
+    for (size_t i = 0; i < flat_led_colours.size(); i += 6) {
         bottom_camera.led_colours.push_back(
-            cv::Scalar(
-                flat_led_colours[0],
-                flat_led_colours[1],
-                flat_led_colours[2]));
+            {cv::Scalar(
+                 flat_led_colours[0],
+                 flat_led_colours[1],
+                 flat_led_colours[2]),
+                cv::Scalar(
+                    flat_led_colours[3],
+                    flat_led_colours[4],
+                    flat_led_colours[5])});
+    }
+
+    std::vector<double> flat_hsv_thresholds;
+    nh.param<std::vector<double>>("bottom_camera/hsv_thresholds", flat_hsv_thresholds, flat_hsv_thresholds);
+    assert((flat_hsv_thresholds.size() % 6) == 0);
+
+    for (size_t i = 0; i < flat_hsv_thresholds.size(); i += 12) {
+        bottom_camera.hsv_thresholds.push_back(
+            {std::make_tuple(
+                 flat_hsv_thresholds[0], flat_hsv_thresholds[1], flat_hsv_thresholds[2],
+                 flat_hsv_thresholds[3], flat_hsv_thresholds[4], flat_hsv_thresholds[5]),
+                std::make_tuple(
+                    flat_hsv_thresholds[6], flat_hsv_thresholds[7], flat_hsv_thresholds[8],
+                    flat_hsv_thresholds[9], flat_hsv_thresholds[10], flat_hsv_thresholds[11])});
     }
 
     return bottom_camera;
@@ -97,7 +120,7 @@ int main(int argc, char** argv)
     cv::Rect roi;
     cv::Mat new_camera_mat = cv::getOptimalNewCameraMatrix(camera_mat, distortion_coeffs, cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), 1., cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), &roi);
 
-    bobi::ColourDetector cd(camera_cfg.led_colours);
+    bobi::ColourDetector cd(camera_cfg.led_colours, camera_cfg.hsv_thresholds);
 
     cv::Mat frame;
     cv::Mat frame_und;
