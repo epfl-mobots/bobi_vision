@@ -8,6 +8,7 @@
 #include <bobi_msgs/PoseVec.h>
 
 #include <bobi_vision/colour_detector.hpp>
+#include <bobi_vision/mask_factory.hpp>
 
 #include <cassert>
 
@@ -25,6 +26,9 @@ struct BottomCameraConfig {
     std::vector<double> distortion_coeffs = {-0.286276, 0.063449, 0.000008, -0.000346, 0.000000};
     bobi::LedPairVec led_colours;
     bobi::TuplePairVec hsv_thresholds;
+
+    std::string mask_type;
+    std::vector<int> mask_specs;
 };
 
 BottomCameraConfig get_camera_config(const ros::NodeHandle& nh)
@@ -69,6 +73,9 @@ BottomCameraConfig get_camera_config(const ros::NodeHandle& nh)
                     flat_hsv_thresholds[6], flat_hsv_thresholds[7], flat_hsv_thresholds[8],
                     flat_hsv_thresholds[9], flat_hsv_thresholds[10], flat_hsv_thresholds[11])});
     }
+
+    nh.param<std::string>("bottom_camera/mask_type", bottom_camera.mask_type, bottom_camera.mask_type);
+    nh.param<std::vector<int>>("bottom_camera/mask", bottom_camera.mask_specs, bottom_camera.mask_specs);
 
     return bottom_camera;
 }
@@ -120,6 +127,8 @@ int main(int argc, char** argv)
     cv::Rect roi;
     cv::Mat new_camera_mat = cv::getOptimalNewCameraMatrix(camera_mat, distortion_coeffs, cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), 1., cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), &roi);
 
+    bobi::MaskPtr setup_mask = bobi::MaskFactory()(camera_cfg.mask_type, camera_cfg.mask_specs, cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), CV_8UC3);
+
     bobi::ColourDetector cd(camera_cfg.led_colours, camera_cfg.hsv_thresholds);
 
     cv::Mat frame;
@@ -133,6 +142,11 @@ int main(int argc, char** argv)
 
         cv::undistort(frame, frame_und, camera_mat, distortion_coeffs, new_camera_mat);
         frame_und = frame_und(roi);
+
+        cv::Mat test_frame = frame_und.clone();
+        setup_mask->roi(test_frame);
+        cv::imshow("test", test_frame);
+        cv::waitKey(10);
 
         // detect robots
         std::vector<cv::Point3f> poses2d = cd.detect(frame_und); // Detect colour blobs
