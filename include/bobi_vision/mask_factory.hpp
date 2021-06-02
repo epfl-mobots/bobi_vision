@@ -20,12 +20,13 @@ namespace bobi {
 
         void roi(cv::Mat& frame)
         {
-            frame = frame(_roi);
+            cv::Mat mask(frame.size(), frame.type(), cv::Scalar(0));
+            mask(_roi) = cv::Scalar(255, 255, 255, 0);
+            cv::bitwise_and(frame, mask, frame);
         }
 
         void draw_roi(cv::Mat& frame, const cv::Scalar& colour) const
         {
-            cv::rectangle(frame, _roi, colour);
         }
 
     protected:
