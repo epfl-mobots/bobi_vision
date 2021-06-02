@@ -10,6 +10,7 @@ namespace bobi {
     class Mask {
     public:
         virtual void roi(cv::Mat& frame) {}
+        virtual void draw_roi(cv::Mat& frame, const cv::Scalar& colour) const {}
     };
 
     class RectangleMask : public Mask {
@@ -20,6 +21,11 @@ namespace bobi {
         void roi(cv::Mat& frame)
         {
             frame = frame(_roi);
+        }
+
+        void draw_roi(cv::Mat& frame, const cv::Scalar& colour) const
+        {
+            cv::rectangle(frame, _roi, colour);
         }
 
     protected:
@@ -36,6 +42,11 @@ namespace bobi {
             cv::Mat mask(frame.size(), frame.type(), cv::Scalar(0));
             cv::circle(mask, cv::Point(_x, _y), _r, cv::Scalar(255, 255, 255, 0), -1);
             cv::bitwise_and(frame, mask, frame);
+        }
+
+        void draw_roi(cv::Mat& frame, const cv::Scalar& colour) const
+        {
+            cv::circle(frame, cv::Point(_x, _y), _r, colour);
         }
 
     protected:
