@@ -105,7 +105,6 @@ int main(int argc, char** argv)
         ros::spinOnce();
         loop_rate.sleep();
     }
-    cv::destroyWindow("BOBI Framework");
 
     return 0;
 }

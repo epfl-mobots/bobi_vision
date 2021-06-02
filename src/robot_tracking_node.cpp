@@ -113,6 +113,7 @@ int main(int argc, char** argv)
     // publisher for the image_transport wrapped image
     image_transport::Publisher raw_image_pub = it.advertise("bottom_camera/image_raw", 1);
     image_transport::Publisher undistorted_image_pub = it.advertise("bottom_camera/image_undistorted", 1);
+    image_transport::Publisher masked_image_pub = it.advertise("bottom_camera/image_masked", 1);
     image_transport::Publisher blob_pub = it.advertise("bottom_camera/image_blobs", 1);
 
     // pose publisher
@@ -143,13 +144,11 @@ int main(int argc, char** argv)
         cv::undistort(frame, frame_und, camera_mat, distortion_coeffs, new_camera_mat);
         frame_und = frame_und(roi);
 
-        cv::Mat test_frame = frame_und.clone();
-        setup_mask->roi(test_frame);
-        cv::imshow("test", test_frame);
-        cv::waitKey(10);
+        cv::Mat masked_frame = frame_und.clone();
+        setup_mask->roi(masked_frame);
 
         // detect robots
-        std::vector<cv::Point3f> poses2d = cd.detect(frame_und); // Detect colour blobs
+        std::vector<cv::Point3f> poses2d = cd.detect(masked_frame); // Detect colour blobs
 
         // publish the poses of the individuals that were detected
         bobi_msgs::PoseVec pv;
@@ -169,6 +168,9 @@ int main(int argc, char** argv)
 
         sensor_msgs::ImagePtr undistorted_image_ptr = cv_bridge::CvImage(header, "bgr8", frame_und).toImageMsg();
         undistorted_image_pub.publish(undistorted_image_ptr);
+
+        sensor_msgs::ImagePtr masked_image_ptr = cv_bridge::CvImage(header, "bgr8", masked_frame).toImageMsg();
+        masked_image_pub.publish(masked_image_ptr);
 
         ros::spinOnce();
         loop_rate.sleep();

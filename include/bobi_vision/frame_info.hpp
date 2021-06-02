@@ -224,6 +224,7 @@ namespace bobi {
 
         void draw_center(cv::Mat& frame)
         {
+            cv::circle(frame, cv::Point(frame.size().width / 2., frame.size().height / 2.), 2, cv::Scalar(0, 255, 0), cv::FILLED);
         }
 
         void set_top_pix2m(double coeff)

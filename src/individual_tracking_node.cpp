@@ -9,6 +9,8 @@
 #include <bobi_msgs/PoseStamped.h>
 #include <bobi_msgs/PoseVec.h>
 
+#include <bobi_vision/mask_factory.hpp>
+
 #include <iostream>
 
 using namespace bobi;
@@ -25,6 +27,9 @@ struct TopCameraConfig {
         0., 783.21002, 262.14992,
         0., 0., 1.};
     std::vector<double> distortion_coeffs = {-0.176236, 0.418800, 0.005023, -0.002432, 0.000000};
+
+    std::string mask_type;
+    std::vector<int> mask_specs;
 };
 
 TopCameraConfig get_camera_config(const ros::NodeHandle& nh)
@@ -39,6 +44,8 @@ TopCameraConfig get_camera_config(const ros::NodeHandle& nh)
     nh.param<double>("top_camera/pix2m", top_camera.pix2m, top_camera.pix2m);
     nh.param<std::vector<double>>("top_camera/camera_matrix", top_camera.camera_matrix, top_camera.camera_matrix);
     nh.param<std::vector<double>>("top_camera/distortion_coefficients", top_camera.distortion_coeffs, top_camera.distortion_coeffs);
+    nh.param<std::string>("top_camera/mask_type", top_camera.mask_type, top_camera.mask_type);
+    nh.param<std::vector<int>>("top_camera/mask", top_camera.mask_specs, top_camera.mask_specs);
     return top_camera;
 }
 
@@ -75,6 +82,7 @@ int main(int argc, char** argv)
     // publisher for the image_transport wrapped image
     image_transport::Publisher raw_image_pub = it.advertise("top_camera/image_raw", 1);
     image_transport::Publisher undistorted_image_pub = it.advertise("top_camera/image_undistorted", 1);
+    image_transport::Publisher masked_image_pub = it.advertise("top_camera/image_masked", 1);
     image_transport::Publisher blob_pub = it.advertise("top_camera/image_blobs", 1);
 
     // pose publisher
@@ -91,6 +99,8 @@ int main(int argc, char** argv)
     cv::Rect roi;
     cv::Mat new_camera_mat = cv::getOptimalNewCameraMatrix(camera_mat, distortion_coeffs, cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), 1., cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), &roi);
 
+    bobi::MaskPtr setup_mask = bobi::MaskFactory()(camera_cfg.mask_type, camera_cfg.mask_specs, cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), CV_8UC3);
+
     cv::Mat frame;
     cv::Mat frame_und;
     ros::Rate loop_rate(30); // TODO: sync with lowest fps value?
@@ -104,8 +114,11 @@ int main(int argc, char** argv)
         cv::undistort(frame, frame_und, camera_mat, distortion_coeffs, new_camera_mat);
         frame_und = frame_und(roi);
 
+        cv::Mat masked_frame = frame_und.clone();
+        setup_mask->roi(masked_frame);
+
         // detect individuals
-        std::vector<cv::Point3f> poses2d = bd.detect(frame_und);
+        std::vector<cv::Point3f> poses2d = bd.detect(masked_frame);
 
         // publish the poses of the individuals that were detected
         bobi_msgs::PoseVec pv;
@@ -129,6 +142,9 @@ int main(int argc, char** argv)
 
         sensor_msgs::ImagePtr undistorted_image_ptr = cv_bridge::CvImage(header, "mono8", frame_und).toImageMsg();
         undistorted_image_pub.publish(undistorted_image_ptr);
+
+        sensor_msgs::ImagePtr masked_image_ptr = cv_bridge::CvImage(header, "mono8", masked_frame).toImageMsg();
+        masked_image_pub.publish(masked_image_ptr);
 
         ros::spinOnce();
         loop_rate.sleep();
