@@ -6,10 +6,11 @@
 #include <opencv2/highgui.hpp>
 #include <bobi_msgs/PoseStamped.h>
 
-#include <dynamic_reconfigure/server.h>
 #include <bobi_vision/BlobDetectorConfig.h>
+#include <bobi_vision/mask_factory.hpp>
 
 #include <std_msgs/Header.h>
+#include <dynamic_reconfigure/server.h>
 
 namespace bobi {
     enum CameraLocation {
@@ -47,6 +48,7 @@ namespace bobi {
             draw_robot_poses(frame, robot_poses);
             draw_mouse_position(frame, camera_loc);
             draw_center(frame);
+            draw_mask(frame, camera_loc);
         }
 
         void draw_fps(cv::Mat& frame)
@@ -227,6 +229,19 @@ namespace bobi {
             cv::circle(frame, cv::Point(frame.size().width / 2., frame.size().height / 2.), 2, cv::Scalar(0, 255, 0), cv::FILLED);
         }
 
+        void draw_mask(cv::Mat& frame, const CameraLocation camera_loc)
+        {
+            switch (camera_loc) {
+            case CameraLocation::TOP:
+                _top_mask->draw_roi(frame, cv::Scalar(0, 255, 0));
+                break;
+
+            case CameraLocation::BOTTOM:
+                _bottom_mask->draw_roi(frame, cv::Scalar(0, 255, 0));
+                break;
+            }
+        }
+
         void set_top_pix2m(double coeff)
         {
             _top_pix2m = coeff;
@@ -253,6 +268,16 @@ namespace bobi {
             _bottom_mouse_coords.first.y = y;
             _bottom_mouse_coords.second.x = x * _bottom_pix2m;
             _bottom_mouse_coords.second.y = y * _bottom_pix2m;
+        }
+
+        void set_top_mask(bobi::MaskPtr mask)
+        {
+            _top_mask = mask;
+        }
+
+        void set_bottom_mask(bobi::MaskPtr mask)
+        {
+            _bottom_mask = mask;
         }
 
     protected:
@@ -308,6 +333,8 @@ namespace bobi {
 
         double _top_pix2m;
         double _bottom_pix2m;
+        bobi::MaskPtr _top_mask;
+        bobi::MaskPtr _bottom_mask;
     };
 } // namespace bobi
 

@@ -27,6 +27,7 @@ namespace bobi {
 
         void draw_roi(cv::Mat& frame, const cv::Scalar& colour) const
         {
+            cv::rectangle(frame, _roi, colour);
         }
 
     protected:

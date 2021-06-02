@@ -7,6 +7,7 @@
 
 #include <bobi_msgs/PoseStamped.h>
 #include <bobi_msgs/PoseVec.h>
+#include <bobi_vision/mask_factory.hpp>
 
 #include <iostream>
 #include <map>
@@ -30,6 +31,34 @@ public:
         _nh->param<double>("bottom_camera/pix2m", _bottom_pix2m, 0.002681818182);
         _fi.set_top_pix2m(_top_pix2m);
         _fi.set_bottom_pix2m(_bottom_pix2m);
+
+        // top camera info
+        int top_camera_px_width;
+        int top_camera_px_height;
+        nh->param<int>("top_camera/camera_px_width", top_camera_px_width, 512);
+        nh->param<int>("top_camera/camera_px_height", top_camera_px_height, 512);
+
+        std::string top_mask_type;
+        std::vector<int> top_mask_specs;
+        nh->param<std::string>("top_camera/mask_type", top_mask_type, top_mask_type);
+        nh->param<std::vector<int>>("top_camera/mask", top_mask_specs, top_mask_specs);
+        _fi.set_top_mask(
+            bobi::MaskFactory()(
+                top_mask_type, top_mask_specs, cv::Size(top_camera_px_width, top_camera_px_height), CV_8UC3));
+
+        // bottom camera info
+        int bottom_camera_px_width;
+        int bottom_camera_px_height;
+        nh->param<int>("bottom_camera/camera_px_width", bottom_camera_px_width, 640);
+        nh->param<int>("bottom_camera/camera_px_height", bottom_camera_px_height, 480);
+
+        std::string bottom_mask_type;
+        std::vector<int> bottom_mask_specs;
+        nh->param<std::string>("bottom_camera/mask_type", bottom_mask_type, bottom_mask_type);
+        nh->param<std::vector<int>>("bottom_camera/mask", bottom_mask_specs, bottom_mask_specs);
+        _fi.set_bottom_mask(
+            bobi::MaskFactory()(
+                bottom_mask_type, bottom_mask_specs, cv::Size(bottom_camera_px_width, bottom_camera_px_height), CV_8UC3));
     }
 
 protected:
