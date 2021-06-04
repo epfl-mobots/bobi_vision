@@ -41,6 +41,7 @@ namespace bobi {
             cv::Mat& frame,
             std::vector<bobi_msgs::PoseStamped> individual_poses,
             std::vector<bobi_msgs::PoseStamped> robot_poses,
+            bobi_msgs::PoseStamped target_position,
             CameraLocation camera_loc = CameraLocation::NA)
         {
             draw_fps(frame);
@@ -49,6 +50,7 @@ namespace bobi {
             draw_mouse_position(frame, camera_loc);
             draw_center(frame);
             draw_mask(frame, camera_loc);
+            draw_target(frame, target_position, camera_loc);
         }
 
         void draw_fps(cv::Mat& frame)
@@ -238,6 +240,20 @@ namespace bobi {
 
             case CameraLocation::BOTTOM:
                 _bottom_mask->draw_roi(frame, cv::Scalar(0, 255, 0));
+                break;
+            }
+        }
+
+        void draw_target(cv::Mat& frame, const bobi_msgs::PoseStamped& target, const CameraLocation camera_loc)
+        {
+            switch (camera_loc) {
+            case CameraLocation::BOTTOM:
+                if (target.pose.xyz.x >= 0 && target.pose.xyz.y >= 0) {
+                    cv::drawMarker(frame, cv::Point(target.pose.xyz.x / _bottom_pix2m, target.pose.xyz.y / _bottom_pix2m), cv::Scalar(0, 200, 0), cv::MARKER_TILTED_CROSS, 15, 2);
+                }
+                break;
+
+            case CameraLocation::TOP:
                 break;
             }
         }

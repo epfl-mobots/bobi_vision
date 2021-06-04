@@ -22,10 +22,11 @@ public:
           _window_titles({{"top", "Individual Tracking"}, {"bottom", "Robot Tracking"}}),
           _fi(_window_titles)
     {
-        _frame_sub = _it.subscribe("top_camera/image_undistorted", 1, &RawImageWrapper::und_image_cb, this);
+        _frame_sub = _it.subscribe("top_camera/image_undistorted", 1, &RawImageWrapper::_und_image_cb, this);
         _bottom_frame_sub = _it.subscribe("bottom_camera/image_undistorted", 1, &RawImageWrapper::bottom_und_image_cb, this);
-        _poses_sub = _nh->subscribe("filtered_poses", 10, &RawImageWrapper::filtered_pose_cb, this);
-        _robot_poses_sub = _nh->subscribe("robot_poses", 10, &RawImageWrapper::robot_pose_cb, this);
+        _poses_sub = _nh->subscribe("filtered_poses", 10, &RawImageWrapper::_filtered_pose_cb, this);
+        _robot_poses_sub = _nh->subscribe("robot_poses", 10, &RawImageWrapper::_robot_pose_cb, this);
+        _target_pos_sub = _nh->subscribe("target_position", 10, &RawImageWrapper::_target_pos_cb, this);
 
         _nh->param<double>("top_camera/pix2m", _top_pix2m, 0.001475);
         _nh->param<double>("bottom_camera/pix2m", _bottom_pix2m, 0.002681818182);
@@ -59,16 +60,20 @@ public:
         _fi.set_bottom_mask(
             bobi::MaskFactory()(
                 bottom_mask_type, bottom_mask_specs, cv::Size(bottom_camera_px_width, bottom_camera_px_height), CV_8UC3));
+
+        // init target vars
+        _target_position.pose.xyz.x = -1;
+        _target_position.pose.xyz.y = -1;
     }
 
 protected:
-    void und_image_cb(const sensor_msgs::ImageConstPtr& msg)
+    void _und_image_cb(const sensor_msgs::ImageConstPtr& msg)
     {
         try {
             cv::Mat frame = cv_bridge::toCvShare(msg, "mono8")->image;
             cv::cvtColor(frame, frame, cv::COLOR_GRAY2BGR);
 
-            _fi.draw_all(frame, _individual_poses, _robot_poses, bobi::CameraLocation::TOP);
+            _fi.draw_all(frame, _individual_poses, _robot_poses, _target_position, bobi::CameraLocation::TOP);
 
             cv::imshow(_window_titles["top"].c_str(), frame);
             cv::waitKey(10);
@@ -83,7 +88,7 @@ protected:
         try {
             cv::Mat frame = cv_bridge::toCvShare(msg, "bgr8")->image;
 
-            _fi.draw_all(frame, _individual_poses, _robot_poses, bobi::CameraLocation::BOTTOM);
+            _fi.draw_all(frame, _individual_poses, _robot_poses, _target_position, bobi::CameraLocation::BOTTOM);
 
             cv::imshow(_window_titles["bottom"].c_str(), frame);
             cv::waitKey(10);
@@ -93,14 +98,19 @@ protected:
         }
     }
 
-    void filtered_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
+    void _filtered_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
     {
         _individual_poses = pose_vec_ptr->poses;
     }
 
-    void robot_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
+    void _robot_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
     {
         _robot_poses = pose_vec_ptr->poses;
+    }
+
+    void _target_pos_cb(const bobi_msgs::PoseStamped::ConstPtr& pos_ptr)
+    {
+        _target_position = *pos_ptr;
     }
 
     std::shared_ptr<ros::NodeHandle> _nh;
@@ -109,10 +119,13 @@ protected:
     std::vector<bobi_msgs::PoseStamped> _individual_poses;
     std::vector<bobi_msgs::PoseStamped> _robot_poses;
 
+    bobi_msgs::PoseStamped _target_position; // TODO: this assumes a single robot and should be fixed in future versions
+
     image_transport::Subscriber _frame_sub;
     image_transport::Subscriber _bottom_frame_sub;
     ros::Subscriber _poses_sub;
     ros::Subscriber _robot_poses_sub;
+    ros::Subscriber _target_pos_sub;
 
     double _top_pix2m;
     double _bottom_pix2m;
