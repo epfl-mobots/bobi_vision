@@ -76,7 +76,7 @@ namespace bobi {
                 if (new_contours.size() == 2) {
                     pose.x = (new_contours[0].x + new_contours[1].x) / 2.;
                     pose.y = (new_contours[0].y + new_contours[1].y) / 2.;
-                    pose.z = std::atan2((new_contours[1].y - new_contours[0].y), new_contours[1].x - new_contours[0].x);
+                    pose.z = std::atan2((new_contours[0].y - new_contours[1].y), new_contours[0].x - new_contours[1].x);
                 }
                 new_poses.push_back(pose);
                 all_contours.push_back({new_contours});
