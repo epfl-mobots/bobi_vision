@@ -10,75 +10,12 @@
 #include <bobi_vision/colour_detector.hpp>
 #include <bobi_vision/mask_factory.hpp>
 
+#include <bobi_vision/camera_config.hpp>
+
 #include <cassert>
 
-struct BottomCameraConfig {
-    bool using_file = false;
-    std::string camera_dev_no = "3";
-    int camera_px_width = 640;
-    int camera_px_height = 480;
-    int fps = 30;
-    double pix2m = 0.002681818182;
-    std::vector<double> camera_matrix = {
-        354.63806, 0., 325.08967,
-        0., 354.95442, 234.85626,
-        0., 0., 1.};
-    std::vector<double> distortion_coeffs = {-0.286276, 0.063449, 0.000008, -0.000346, 0.000000};
-    bobi::LedPairVec led_colours;
-    bobi::TuplePairVec hsv_thresholds;
-
-    std::string mask_type;
-    std::vector<int> mask_specs;
-};
-
-BottomCameraConfig get_camera_config(const ros::NodeHandle& nh)
-{
-    // configuration for the top camera
-    BottomCameraConfig bottom_camera;
-    nh.param<bool>("bottom_camera/using_file", bottom_camera.using_file, bottom_camera.using_file);
-    nh.param<std::string>("bottom_camera/camera_dev_no", bottom_camera.camera_dev_no, bottom_camera.camera_dev_no);
-    nh.param<int>("bottom_camera/camera_px_width", bottom_camera.camera_px_width, bottom_camera.camera_px_width);
-    nh.param<int>("bottom_camera/camera_px_height", bottom_camera.camera_px_height, bottom_camera.camera_px_height);
-    nh.param<int>("bottom_camera/fps", bottom_camera.fps, bottom_camera.fps);
-    nh.param<double>("bottom_camera/pix2m", bottom_camera.pix2m, bottom_camera.pix2m);
-    nh.param<std::vector<double>>("bottom_camera/camera_matrix", bottom_camera.camera_matrix, bottom_camera.camera_matrix);
-    nh.param<std::vector<double>>("bottom_camera/distortion_coefficients", bottom_camera.distortion_coeffs, bottom_camera.distortion_coeffs);
-
-    std::vector<int> flat_led_colours;
-    nh.param<std::vector<int>>("bottom_camera/led_colours", flat_led_colours, flat_led_colours);
-    assert((flat_led_colours.size() % 6) == 0);
-
-    for (size_t i = 0; i < flat_led_colours.size(); i += 6) {
-        bottom_camera.led_colours.push_back(
-            {cv::Scalar(
-                 flat_led_colours[0],
-                 flat_led_colours[1],
-                 flat_led_colours[2]),
-                cv::Scalar(
-                    flat_led_colours[3],
-                    flat_led_colours[4],
-                    flat_led_colours[5])});
-    }
-
-    std::vector<double> flat_hsv_thresholds;
-    nh.param<std::vector<double>>("bottom_camera/hsv_thresholds", flat_hsv_thresholds, flat_hsv_thresholds);
-    assert((flat_hsv_thresholds.size() % 6) == 0);
-
-    for (size_t i = 0; i < flat_hsv_thresholds.size(); i += 12) {
-        bottom_camera.hsv_thresholds.push_back(
-            {std::make_tuple(
-                 flat_hsv_thresholds[0], flat_hsv_thresholds[1], flat_hsv_thresholds[2],
-                 flat_hsv_thresholds[3], flat_hsv_thresholds[4], flat_hsv_thresholds[5]),
-                std::make_tuple(
-                    flat_hsv_thresholds[6], flat_hsv_thresholds[7], flat_hsv_thresholds[8],
-                    flat_hsv_thresholds[9], flat_hsv_thresholds[10], flat_hsv_thresholds[11])});
-    }
-
-    nh.param<std::string>("bottom_camera/mask_type", bottom_camera.mask_type, bottom_camera.mask_type);
-    nh.param<std::vector<int>>("bottom_camera/mask", bottom_camera.mask_specs, bottom_camera.mask_specs);
-
-    return bottom_camera;
-}
+using namespace bobi;
+using namespace bottom;
 
 int main(int argc, char** argv)
 {

@@ -30,8 +30,8 @@ top_camera:
     data: [771.06183,   0.     , 254.97104,   0.     ,
             0.     , 770.24854, 263.07475,   0.     ,
             0.     ,   0.     ,   1.     ,   0.     ]
-  mask_type: "Circle"
-  mask: [256, 256, 200]
+  # mask_type: "Circle"
+  # mask: [256, 256, 200]
   
 
 bottom_camera:

@@ -10,44 +10,12 @@
 #include <bobi_msgs/PoseVec.h>
 
 #include <bobi_vision/mask_factory.hpp>
+#include <bobi_vision/camera_config.hpp>
 
 #include <iostream>
 
 using namespace bobi;
-
-struct TopCameraConfig {
-    bool using_file = false;
-    std::string camera_dev_no = "2";
-    int camera_px_width = 512;
-    int camera_px_height = 512;
-    int fps = 30;
-    double pix2m = 0.001475;
-    std::vector<double> camera_matrix = {
-        783.55455, 0., 256.11758,
-        0., 783.21002, 262.14992,
-        0., 0., 1.};
-    std::vector<double> distortion_coeffs = {-0.176236, 0.418800, 0.005023, -0.002432, 0.000000};
-
-    std::string mask_type;
-    std::vector<int> mask_specs;
-};
-
-TopCameraConfig get_camera_config(const ros::NodeHandle& nh)
-{
-    // configuration for the top camera
-    TopCameraConfig top_camera;
-    nh.param<bool>("top_camera/using_file", top_camera.using_file, top_camera.using_file);
-    nh.param<std::string>("top_camera/camera_dev_no", top_camera.camera_dev_no, top_camera.camera_dev_no);
-    nh.param<int>("top_camera/camera_px_width", top_camera.camera_px_width, top_camera.camera_px_width);
-    nh.param<int>("top_camera/camera_px_height", top_camera.camera_px_height, top_camera.camera_px_height);
-    nh.param<int>("top_camera/fps", top_camera.fps, top_camera.fps);
-    nh.param<double>("top_camera/pix2m", top_camera.pix2m, top_camera.pix2m);
-    nh.param<std::vector<double>>("top_camera/camera_matrix", top_camera.camera_matrix, top_camera.camera_matrix);
-    nh.param<std::vector<double>>("top_camera/distortion_coefficients", top_camera.distortion_coeffs, top_camera.distortion_coeffs);
-    nh.param<std::string>("top_camera/mask_type", top_camera.mask_type, top_camera.mask_type);
-    nh.param<std::vector<int>>("top_camera/mask", top_camera.mask_specs, top_camera.mask_specs);
-    return top_camera;
-}
+using namespace top;
 
 int main(int argc, char** argv)
 {
