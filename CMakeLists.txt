@@ -11,6 +11,7 @@ list(FILTER TRACKING_SOURCES EXCLUDE REGEX "individual_tracking_node.cpp")
 list(FILTER TRACKING_SOURCES EXCLUDE REGEX "visualization_node.cpp")
 list(FILTER TRACKING_SOURCES EXCLUDE REGEX "trajectory_identification_node.cpp")
 list(FILTER TRACKING_SOURCES EXCLUDE REGEX "robot_tracking_node.cpp")
+list(FILTER TRACKING_SOURCES EXCLUDE REGEX "coordinate_converter_node.cpp")
 
 find_package(
     catkin REQUIRED COMPONENTS
@@ -56,3 +57,7 @@ add_dependencies(trajectory_identification_node ${catkin_EXPORTED_TARGETS} ${PRO
 add_executable(robot_tracking_node src/robot_tracking_node.cpp ${TRACKING_SOURCES})
 target_link_libraries(robot_tracking_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
 add_dependencies(robot_tracking_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg bobi_msgs_generate_messages_cpp)
+
+add_executable(coordinate_converter_node src/coordinate_converter_node.cpp ${TRACKING_SOURCES})
+target_link_libraries(coordinate_converter_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
+add_dependencies(coordinate_converter_node ${catkin_EXPORTED_TARGETS} bobi_msgs_generate_messages_cpp)

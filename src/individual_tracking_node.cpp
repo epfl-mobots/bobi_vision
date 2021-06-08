@@ -24,7 +24,7 @@ int main(int argc, char** argv)
     image_transport::ImageTransport it(nh);
 
     // get camera config from the parameter server
-    TopCameraConfig camera_cfg = get_camera_config(nh);
+    CameraConfig camera_cfg = get_camera_config(nh);
 
     // set opencv stream
     std::string medium;

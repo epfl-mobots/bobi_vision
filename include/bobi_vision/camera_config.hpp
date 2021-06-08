@@ -8,7 +8,7 @@ namespace bobi {
 
     namespace top {
 
-        struct TopCameraConfig {
+        struct CameraConfig {
             bool using_file = false;
             std::string camera_dev_no = "2";
             int camera_px_width = 512;
@@ -25,10 +25,10 @@ namespace bobi {
             std::vector<int> mask_specs;
         };
 
-        TopCameraConfig get_camera_config(const ros::NodeHandle& nh)
+        CameraConfig get_camera_config(const ros::NodeHandle& nh)
         {
             // configuration for the top camera
-            TopCameraConfig top_camera;
+            CameraConfig top_camera;
             nh.param<bool>("top_camera/using_file", top_camera.using_file, top_camera.using_file);
             nh.param<std::string>("top_camera/camera_dev_no", top_camera.camera_dev_no, top_camera.camera_dev_no);
             nh.param<int>("top_camera/camera_px_width", top_camera.camera_px_width, top_camera.camera_px_width);
@@ -45,7 +45,7 @@ namespace bobi {
     } // namespace top
 
     namespace bottom {
-        struct BottomCameraConfig {
+        struct CameraConfig {
             bool using_file = false;
             std::string camera_dev_no = "3";
             int camera_px_width = 640;
@@ -64,10 +64,10 @@ namespace bobi {
             std::vector<int> mask_specs;
         };
 
-        BottomCameraConfig get_camera_config(const ros::NodeHandle& nh)
+        CameraConfig get_camera_config(const ros::NodeHandle& nh)
         {
             // configuration for the top camera
-            BottomCameraConfig bottom_camera;
+            CameraConfig bottom_camera;
             nh.param<bool>("bottom_camera/using_file", bottom_camera.using_file, bottom_camera.using_file);
             nh.param<std::string>("bottom_camera/camera_dev_no", bottom_camera.camera_dev_no, bottom_camera.camera_dev_no);
             nh.param<int>("bottom_camera/camera_px_width", bottom_camera.camera_px_width, bottom_camera.camera_px_width);
