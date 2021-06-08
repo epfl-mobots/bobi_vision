@@ -15,6 +15,7 @@ class CameraMapper:
         self._distance_eps = rospy.get_param('distance_eps', 0.005)
         self._waypoints = []
         self._waypoints_top = []
+        self._waypoints_bottom = []
         self._idx = 0
         self._done = False
 
@@ -61,8 +62,13 @@ class CameraMapper:
                     (self._bottom_pose.pose.xyz.x - goal[0]) ** 2 +
                     (self._bottom_pose.pose.xyz.y - goal[1]) ** 2
                 ) < self._distance_eps:
+                    self._waypoints_bottom.append(
+                        (self._bottom_pose.pose.xyz.x,
+                         self._bottom_pose.pose.xyz.y)
+                    )
                     self._waypoints_top.append(
-                        (self._top_pose.pose.xyz.x, self._top_pose.pose.xyz.y))
+                        (self._top_pose.pose.xyz.x,
+                         self._top_pose.pose.xyz.y))
                     self._idx += 1
                 else:
                     ps = PoseStamped()
@@ -86,9 +92,11 @@ class CameraMapper:
     def dump_yaml(self):
         wp = [list(a) for a in self._waypoints]
         wp_top = [list(a) for a in self._waypoints_top]
+        wp_bottom = [list(a) for a in self._waypoints_bottom]
         mapping_dict = {
             'points_top': wp_top,
-            'points_bottom': wp,
+            'points_bottom': wp_bottom,
+            'waypoints': wp,
         }
         with open('camera_mapping.yaml', 'w') as f:
             yaml.dump(mapping_dict, f)
