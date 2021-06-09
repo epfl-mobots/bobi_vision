@@ -4,8 +4,9 @@
 #include <ros/ros.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui.hpp>
-#include <bobi_msgs/PoseStamped.h>
 
+#include <bobi_msgs/PoseStamped.h>
+#include <bobi_msgs/ConvertCoordinates.h>
 #include <bobi_vision/BlobDetectorConfig.h>
 #include <bobi_vision/mask_factory.hpp>
 
@@ -20,12 +21,18 @@ namespace bobi {
     };
     class FrameInfo {
     public:
-        FrameInfo(const std::map<std::string, std::string>& window_titles)
-            : _top_fps(0.),
+        FrameInfo(std::shared_ptr<ros::NodeHandle> nh, const std::map<std::string, std::string>& window_titles)
+            : _nh(nh),
+              _top_fps(0.),
               _bottom_fps(0.),
               _window_titles(window_titles)
         {
             _prev_time = ros::Time::now();
+
+            _bottom2top_srv = _nh->serviceClient<bobi_msgs::ConvertCoordinates>("convert_bottom2top");
+            _top2bottom_srv = _nh->serviceClient<bobi_msgs::ConvertCoordinates>("convert_top2bottom");
+            _bottom2top_srv.waitForExistence();
+            _top2bottom_srv.waitForExistence();
 
             dynamic_reconfigure::Server<bobi_vision::BlobDetectorConfig>::CallbackType f;
             f = boost::bind(&FrameInfo::_config_cb, this, _1, _2);
@@ -45,8 +52,8 @@ namespace bobi {
             CameraLocation camera_loc = CameraLocation::NA)
         {
             draw_fps(frame);
-            draw_poses(frame, individual_poses);
-            draw_robot_poses(frame, robot_poses);
+            draw_poses(frame, individual_poses, camera_loc);
+            draw_robot_poses(frame, robot_poses, camera_loc);
             draw_mouse_position(frame, camera_loc);
             draw_center(frame);
             draw_mask(frame, camera_loc);
@@ -97,7 +104,7 @@ namespace bobi {
             _prev_time = now;
         }
 
-        void draw_poses(cv::Mat& frame, std::vector<bobi_msgs::PoseStamped> poses)
+        void draw_poses(cv::Mat& frame, std::vector<bobi_msgs::PoseStamped> poses, const CameraLocation camera_loc)
         {
             if (poses.size() > 0) {
                 double cur_fps = 1. / ros::Duration(poses[0].header.stamp - _prev_top_header.stamp).toSec();
@@ -109,8 +116,19 @@ namespace bobi {
 
             for (size_t i = 0; i < poses.size(); ++i) {
                 bobi_msgs::PoseStamped pose = poses[i];
-                pose.pose.xyz.x /= _top_pix2m;
-                pose.pose.xyz.y /= _top_pix2m;
+                if (camera_loc == CameraLocation::BOTTOM) {
+                    bobi_msgs::ConvertCoordinates srv;
+                    srv.request.p.x = pose.pose.xyz.x;
+                    srv.request.p.y = pose.pose.xyz.y;
+                    if (_bottom2top_srv.call(srv)) {
+                        pose.pose.xyz.x = srv.response.converted_p.x / _bottom_pix2m;
+                        pose.pose.xyz.y = srv.response.converted_p.y / _bottom_pix2m;
+                    }
+                }
+                else {
+                    pose.pose.xyz.x /= _top_pix2m;
+                    pose.pose.xyz.y /= _top_pix2m;
+                }
 
                 float offset = 13.;
                 float base_coef = 4.;
@@ -131,7 +149,7 @@ namespace bobi {
             }
         }
 
-        void draw_robot_poses(cv::Mat& frame, std::vector<bobi_msgs::PoseStamped> poses)
+        void draw_robot_poses(cv::Mat& frame, std::vector<bobi_msgs::PoseStamped> poses, const CameraLocation camera_loc)
         {
             if (poses.size() > 0) {
                 double cur_fps = 1. / ros::Duration(poses[0].header.stamp - _prev_bottom_header.stamp).toSec();
@@ -143,8 +161,20 @@ namespace bobi {
 
             for (size_t i = 0; i < poses.size(); ++i) {
                 bobi_msgs::PoseStamped pose = poses[i];
-                pose.pose.xyz.x /= _bottom_pix2m;
-                pose.pose.xyz.y /= _bottom_pix2m;
+
+                if (camera_loc == CameraLocation::TOP) {
+                    bobi_msgs::ConvertCoordinates srv;
+                    srv.request.p.x = pose.pose.xyz.x;
+                    srv.request.p.y = pose.pose.xyz.y;
+                    if (_top2bottom_srv.call(srv)) {
+                        pose.pose.xyz.x = srv.response.converted_p.x / _top_pix2m;
+                        pose.pose.xyz.y = srv.response.converted_p.y / _top_pix2m;
+                    }
+                }
+                else {
+                    pose.pose.xyz.x /= _bottom_pix2m;
+                    pose.pose.xyz.y /= _bottom_pix2m;
+                }
 
                 float offset = 13.;
                 float base_coef = 4.;
@@ -244,7 +274,7 @@ namespace bobi {
             }
         }
 
-        void draw_target(cv::Mat& frame, const bobi_msgs::PoseStamped& target, const CameraLocation camera_loc)
+        void draw_target(cv::Mat& frame, bobi_msgs::PoseStamped target, const CameraLocation camera_loc)
         {
             switch (camera_loc) {
             case CameraLocation::BOTTOM:
@@ -254,6 +284,16 @@ namespace bobi {
                 break;
 
             case CameraLocation::TOP:
+                if (target.pose.xyz.x >= 0 && target.pose.xyz.y >= 0) {
+                    bobi_msgs::ConvertCoordinates srv;
+                    srv.request.p.x = target.pose.xyz.x;
+                    srv.request.p.y = target.pose.xyz.y;
+                    if (_top2bottom_srv.call(srv)) {
+                        target.pose.xyz.x = srv.response.converted_p.x / _top_pix2m;
+                        target.pose.xyz.y = srv.response.converted_p.y / _top_pix2m;
+                        cv::drawMarker(frame, cv::Point(target.pose.xyz.x, target.pose.xyz.y), cv::Scalar(0, 200, 0), cv::MARKER_TILTED_CROSS, 15, 2);
+                    }
+                }
                 break;
             }
         }
@@ -326,6 +366,10 @@ namespace bobi {
                 fi->set_bottom_mouse_coords(x, y);
             }
         }
+
+        std::shared_ptr<ros::NodeHandle> _nh;
+        ros::ServiceClient _top2bottom_srv;
+        ros::ServiceClient _bottom2top_srv;
 
         dynamic_reconfigure::Server<bobi_vision::BlobDetectorConfig> _config_server;
 
