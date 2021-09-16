@@ -22,11 +22,11 @@ public:
           _window_titles({{"top", "Individual Tracking"}, {"bottom", "Robot Tracking"}}),
           _fi(_nh, _window_titles)
     {
-        _frame_sub = _it.subscribe("top_camera/image_undistorted", 1, &RawImageWrapper::_und_image_cb, this);
+        _frame_sub = _it.subscribe("top_camera/image_undistorted", 1, &RawImageWrapper::_top_und_image_cb, this);
         _bottom_frame_sub = _it.subscribe("bottom_camera/image_undistorted", 1, &RawImageWrapper::bottom_und_image_cb, this);
-        _poses_sub = _nh->subscribe("filtered_poses", 2, &RawImageWrapper::_filtered_pose_cb, this);
-        _robot_poses_sub = _nh->subscribe("robot_poses", 2, &RawImageWrapper::_robot_pose_cb, this);
-        _target_pos_sub = _nh->subscribe("target_position", 2, &RawImageWrapper::_target_pos_cb, this);
+        _poses_sub = _nh->subscribe("filtered_poses", 1, &RawImageWrapper::_filtered_pose_cb, this);
+        _robot_poses_sub = _nh->subscribe("robot_poses", 1, &RawImageWrapper::_robot_pose_cb, this);
+        _target_pos_sub = _nh->subscribe("target_position", 1, &RawImageWrapper::_target_pos_cb, this);
 
         _nh->param<double>("top_camera/pix2m", _top_pix2m, 0.001475);
         _nh->param<double>("bottom_camera/pix2m", _bottom_pix2m, 0.002681818182);
@@ -67,7 +67,7 @@ public:
     }
 
 protected:
-    void _und_image_cb(const sensor_msgs::ImageConstPtr& msg)
+    void _top_und_image_cb(const sensor_msgs::ImageConstPtr& msg)
     {
         try {
             cv::Mat frame = cv_bridge::toCvShare(msg, "mono8")->image;

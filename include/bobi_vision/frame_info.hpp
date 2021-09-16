@@ -19,6 +19,7 @@ namespace bobi {
         TOP,
         BOTTOM
     };
+
     class FrameInfo {
     public:
         FrameInfo(std::shared_ptr<ros::NodeHandle> nh, const std::map<std::string, std::string>& window_titles)
@@ -37,6 +38,8 @@ namespace bobi {
             dynamic_reconfigure::Server<bobi_vision::BlobDetectorConfig>::CallbackType f;
             f = boost::bind(&FrameInfo::_config_cb, this, _1, _2);
             _config_server.setCallback(f);
+
+            _target_position = _nh->advertise<bobi_msgs::PoseStamped>("target_position", 1);
 
             cv::namedWindow(_window_titles["top"], cv::WINDOW_AUTOSIZE);
             cv::namedWindow(_window_titles["bottom"], cv::WINDOW_AUTOSIZE);
@@ -288,7 +291,8 @@ namespace bobi {
                     bobi_msgs::ConvertCoordinates srv;
                     srv.request.p.x = target.pose.xyz.x;
                     srv.request.p.y = target.pose.xyz.y;
-                    if (_top2bottom_srv.call(srv)) {
+                    if (_bottom2top_srv.call(srv)) {
+                        std::cout << srv.response.converted_p.x << "," << srv.response.converted_p.y << std::endl;
                         target.pose.xyz.x = srv.response.converted_p.x / _top_pix2m;
                         target.pose.xyz.y = srv.response.converted_p.y / _top_pix2m;
                         cv::drawMarker(frame, cv::Point(target.pose.xyz.x, target.pose.xyz.y), cv::Scalar(0, 200, 0), cv::MARKER_TILTED_CROSS, 15, 2);
@@ -308,6 +312,38 @@ namespace bobi {
             _bottom_pix2m = coeff;
         }
 
+        double get_top_pix2m() const
+        {
+            return _top_pix2m;
+        }
+
+        double get_bottom_pix2m() const
+        {
+            return _bottom_pix2m;
+        }
+
+        geometry_msgs::Point convert_top2bottom(const geometry_msgs::Point& p)
+        {
+            bobi_msgs::ConvertCoordinates conv;
+            conv.request.p = p;
+            if (!_top2bottom_srv.call(conv)) {
+                conv.response.converted_p.x = -1;
+                conv.response.converted_p.y = -1;
+            }
+            return conv.response.converted_p;
+        }
+
+        geometry_msgs::Point convert_bottom2top(const geometry_msgs::Point& p)
+        {
+            bobi_msgs::ConvertCoordinates conv;
+            conv.request.p = p;
+            if (!_bottom2top_srv.call(conv)) {
+                conv.response.converted_p.x = -1;
+                conv.response.converted_p.y = -1;
+            }
+            return conv.response.converted_p;
+        }
+
         void set_top_mouse_coords(int x, int y)
         {
             std::lock_guard<std::mutex> guard(_topw_mutex);
@@ -324,6 +360,11 @@ namespace bobi {
             _bottom_mouse_coords.first.y = y;
             _bottom_mouse_coords.second.x = x * _bottom_pix2m;
             _bottom_mouse_coords.second.y = y * _bottom_pix2m;
+        }
+
+        void set_target(const bobi_msgs::PoseStamped& ps)
+        {
+            _target_position.publish(ps);
         }
 
         void set_top_mask(bobi::MaskPtr mask)
@@ -357,6 +398,18 @@ namespace bobi {
             if (event == cv::EVENT_MOUSEMOVE) {
                 fi->set_top_mouse_coords(x, y);
             }
+
+            if (flags == (cv::EVENT_FLAG_CTRLKEY + cv::EVENT_LBUTTONDOWN)) {
+                geometry_msgs::Point p, converted_p;
+                p.x = x * fi->get_top_pix2m();
+                p.y = y * fi->get_top_pix2m();
+                converted_p = fi->convert_top2bottom(p);
+                bobi_msgs::PoseStamped ps;
+                ps.pose.xyz.x = converted_p.x;
+                ps.pose.xyz.y = converted_p.y;
+                ps.header.stamp = ros::Time::now();
+                fi->set_target(ps);
+            }
         }
 
         static void _bottom_cam_mouse_cb(int event, int x, int y, int flags, void* data)
@@ -365,11 +418,22 @@ namespace bobi {
             if (event == cv::EVENT_MOUSEMOVE) {
                 fi->set_bottom_mouse_coords(x, y);
             }
+
+            if (flags == (cv::EVENT_FLAG_CTRLKEY + cv::EVENT_LBUTTONDOWN)) {
+                float xm = x * fi->get_bottom_pix2m();
+                float ym = y * fi->get_bottom_pix2m();
+                bobi_msgs::PoseStamped ps;
+                ps.pose.xyz.x = xm;
+                ps.pose.xyz.y = ym;
+                ps.header.stamp = ros::Time::now();
+                fi->set_target(ps);
+            }
         }
 
         std::shared_ptr<ros::NodeHandle> _nh;
         ros::ServiceClient _top2bottom_srv;
         ros::ServiceClient _bottom2top_srv;
+        ros::Publisher _target_position;
 
         dynamic_reconfigure::Server<bobi_vision::BlobDetectorConfig> _config_server;
 
@@ -393,6 +457,7 @@ namespace bobi {
 
         double _top_pix2m;
         double _bottom_pix2m;
+
         bobi::MaskPtr _top_mask;
         bobi::MaskPtr _bottom_mask;
     };
