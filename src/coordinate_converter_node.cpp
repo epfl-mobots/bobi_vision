@@ -106,9 +106,8 @@ int main(int argc, char** argv)
     top::CameraConfig top_cfg = top::get_camera_config(*nh);
     bottom::CameraConfig bottom_cfg = bottom::get_camera_config(*nh);
 
-    CoordinateMapper bottom2top(nh, "convert_bottom2top", points_bottom, points_top, top_cfg.camera_matrix, top_cfg.distortion_coeffs, top_cfg.pix2m, top_cfg.camera_px_width, top_cfg.camera_px_height);
-
-    CoordinateMapper top2bottom(nh, "convert_top2bottom", points_top, points_bottom, bottom_cfg.camera_matrix, bottom_cfg.distortion_coeffs, bottom_cfg.pix2m, bottom_cfg.camera_px_width, bottom_cfg.camera_px_height);
+    CoordinateMapper top2bottom(nh, "convert_top2bottom", points_bottom, points_top, top_cfg.camera_matrix, top_cfg.distortion_coeffs, top_cfg.pix2m, top_cfg.camera_px_width, top_cfg.camera_px_height);
+    CoordinateMapper bottom2top(nh, "convert_bottom2top", points_top, points_bottom, bottom_cfg.camera_matrix, bottom_cfg.distortion_coeffs, bottom_cfg.pix2m, bottom_cfg.camera_px_width, bottom_cfg.camera_px_height);
 
     ros::spin();
 
