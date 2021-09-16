@@ -32,10 +32,6 @@ namespace bobi {
                     + std::pow(o.xyz.y - n.xyz.y, 2.));
             };
 
-            auto angle_diff = [&](const bobi_msgs::Pose& n, const bobi_msgs::Pose& o) {
-                return _angle_to_pipi(n.rpy.yaw - o.rpy.yaw);
-            };
-
             // { // assign individual ids according to the robot positions
             //     AgentPoseList::iterator cur_robot = robot_poses.begin();
             //     AgentPoseList::iterator cur_ind = individual_poses.begin();
@@ -65,63 +61,35 @@ namespace bobi {
                 return;
             }
 
-            std::cout << "ok1" << std::endl;
             std::vector<bobi_msgs::PoseStamped> ind_poses_cpy(*cur);
             for (size_t i = 0; i < (*cur).size(); ++i) {
-                float min_dist = euc_distance((*cur)[i].pose, (*prev)[idcs[0]].pose);
-                float min_angle_diff = abs(angle_diff((*cur)[i].pose, (*prev)[idcs[0]].pose)) / M_PI;
-                float min_val = (min_dist * min_angle_diff)
-                    / (std::pow(min_dist, 2.), std::pow(min_angle_diff, 2.));
                 int idx = idcs[0];
-
+                float min_dist = euc_distance((*cur)[i].pose, (*prev)[idx].pose);
+                float min_val = min_dist;
                 for (size_t j = 0; j < (*cur).size(); ++j) {
                     float dist = euc_distance((*cur)[i].pose, (*prev)[j].pose);
-                    float ad = abs(angle_diff((*cur)[i].pose, (*prev)[j].pose)) / M_PI;
-                    float val = (dist * ad)
-                        / (std::pow(dist, 2.) * std::pow(ad, 2.));
-
+                    float val = dist;
                     if (val < min_val && std::find(idcs.begin(), idcs.end(), j) != idcs.end()) {
                         min_val = val;
                         idx = j;
                     }
                 }
-                std::cout << "ok2" << std::endl;
+
                 bobi_msgs::PoseStamped tmp = ind_poses_cpy[idx];
                 ind_poses_cpy[idx] = ind_poses_cpy[i];
                 ind_poses_cpy[i] = tmp;
-                std::cout << "ok3" << std::endl;
-
                 idcs.erase(std::remove(idcs.begin(), idcs.end(), idx), idcs.end());
-                std::cout << "ok4" << std::endl;
             }
-
-            std::cout << "ok5" << std::endl;
 
             for (const int idx : idcs) {
                 std::cout << ind_poses_cpy.size() << " " << idx << " " << prev->size() << std::endl;
                 ind_poses_cpy.insert(ind_poses_cpy.begin() + idx, (*prev)[idx]);
             }
-            std::cout << "ok6" << std::endl;
 
             *cur = ind_poses_cpy;
         }
 
     protected:
-        double _angle_to_pipi(double angle)
-        {
-            while (true) {
-                if (angle < -M_PI) {
-                    angle += 2. * M_PI;
-                }
-                if (angle > M_PI) {
-                    angle -= 2. * M_PI;
-                }
-                if (abs(angle) <= M_PI) {
-                    break;
-                }
-            }
-            return angle;
-        }
     };
 } // namespace bobi
 
