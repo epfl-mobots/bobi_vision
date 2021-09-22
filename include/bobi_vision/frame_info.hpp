@@ -292,7 +292,6 @@ namespace bobi {
                     srv.request.p.x = target.pose.xyz.x;
                     srv.request.p.y = target.pose.xyz.y;
                     if (_bottom2top_srv.call(srv)) {
-                        std::cout << srv.response.converted_p.x << "," << srv.response.converted_p.y << std::endl;
                         target.pose.xyz.x = srv.response.converted_p.x / _top_pix2m;
                         target.pose.xyz.y = srv.response.converted_p.y / _top_pix2m;
                         cv::drawMarker(frame, cv::Point(target.pose.xyz.x, target.pose.xyz.y), cv::Scalar(0, 200, 0), cv::MARKER_TILTED_CROSS, 15, 2);
