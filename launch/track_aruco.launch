@@ -3,11 +3,12 @@
     <group ns="$(arg ns)">
         <rosparam>
             robot_id: 0
+            robot_is_top: true
         </rosparam>
 
         <rosparam command="load" file="$(find bobi_vision)/config/camera_config.yaml" />
 
-        <node name="thymio_tracking_node" pkg="bobi_vision" type="thymio_tracking_node" output="screen"/>
+        <node name="aruco_tracking_node" pkg="bobi_vision" type="aruco_tracking_node" output="screen"/>
         <include file="$(find bobi_vision)/launch/robot_tracker.launch" />
         <include file="$(find bobi_vision)/launch/coordinate_converter.launch" />
         <include file="$(find bobi_vision)/launch/visualization.launch" />

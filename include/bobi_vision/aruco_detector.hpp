@@ -11,11 +11,12 @@ namespace bobi {
     public:
         ArucoDetector();
 
-        ArucoDetector(const cv::Mat& camera_matrix, const cv::Mat& distortion_coeffs)
+        ArucoDetector(const cv::Mat& camera_matrix, const cv::Mat& distortion_coeffs, const float marker_len)
             : _aruco_params(cv::aruco::DetectorParameters::create()),
               _aruco_dict(cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_1000)),
               _camera_matrix(camera_matrix),
-              _distortion_coeffs(distortion_coeffs)
+              _distortion_coeffs(distortion_coeffs),
+              _marker_len(marker_len)
 
         {
         }
@@ -28,7 +29,7 @@ namespace bobi {
             _current_poses.clear();
 
             cv::aruco::detectMarkers(img, _aruco_dict, _current_corners, _current_ids, _aruco_params, _rejected_candidates);
-            cv::aruco::estimatePoseSingleMarkers(_current_corners, 0.05, _camera_matrix, _distortion_coeffs, _rotation_vecs, _translation_vecs);
+            cv::aruco::estimatePoseSingleMarkers(_current_corners, _marker_len, _camera_matrix, _distortion_coeffs, _rotation_vecs, _translation_vecs);
 
             for (int i = 0; i < _rotation_vecs.size(); ++i) {
                 auto rvec = _rotation_vecs[i];
@@ -39,7 +40,6 @@ namespace bobi {
                 cv::Mat rot;
                 cv::Rodrigues(rvec, rot);
                 cv::Vec3d rpy = rot2euler(rot);
-                rpy[2] = -_angle_to_pipi(rpy[2] - M_PI / 2);
                 _current_poses.push_back(cv::Vec6d(tvec[0], tvec[1], tvec[2], rpy[0], rpy[1], rpy[2]));
             }
 
@@ -164,6 +164,7 @@ namespace bobi {
 
         cv::Mat _camera_matrix;
         cv::Mat _distortion_coeffs;
+        float _marker_len;
         std::vector<cv::Vec3d> _rotation_vecs;
         std::vector<cv::Vec3d> _translation_vecs;
     };

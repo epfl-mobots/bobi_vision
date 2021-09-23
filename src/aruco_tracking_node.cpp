@@ -83,7 +83,7 @@ int main(int argc, char** argv)
     cv::Rect roi;
     cv::Mat new_camera_mat = cv::getOptimalNewCameraMatrix(camera_mat, distortion_coeffs, cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), 1., cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), &roi);
 
-    ArucoDetector ar(camera_mat, distortion_coeffs);
+    ArucoDetector ar(camera_mat, distortion_coeffs, 0.08);
 
     cv::Mat frame;
     cv::Mat frame_und;
@@ -117,10 +117,13 @@ int main(int argc, char** argv)
             pose.header = header;
             pose.pose.xyz.x = conv.response.converted_p.x;
             pose.pose.xyz.y = conv.response.converted_p.y;
-            pose.pose.rpy.yaw = -angle_to_pipi(pose6d[5]);
+            pose.pose.rpy.yaw = angle_to_pipi(pose6d[5] - M_PI / 2);
             pv.poses.push_back(pose);
         }
-        pose_pub.publish(pv);
+
+        if (poses.size() > 0) {
+            pose_pub.publish(pv);
+        }
 
         // publish raw image
         sensor_msgs::ImagePtr raw_image_ptr = cv_bridge::CvImage(header, "bgr8", frame).toImageMsg();

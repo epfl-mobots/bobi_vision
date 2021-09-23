@@ -47,6 +47,10 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    // check if we are using the setup with a robot tracker from the top camera
+    bool robot_is_top;
+    nh.param<bool>("robot_is_top", robot_is_top, false);
+
     // publisher for the image_transport wrapped image
     image_transport::Publisher raw_image_pub = it.advertise("bottom_camera/image_raw", 1);
     image_transport::Publisher undistorted_image_pub = it.advertise("bottom_camera/image_undistorted", 1);
@@ -55,7 +59,9 @@ int main(int argc, char** argv)
 
     // pose publisher
     ros::Publisher pose_pub;
-    pose_pub = nh.advertise<bobi_msgs::PoseVec>("robot_poses", 1);
+    if (!robot_is_top) {
+        pose_pub = nh.advertise<bobi_msgs::PoseVec>("robot_poses", 1);
+    }
 
     cv::Mat distortion_coeffs = cv::Mat(1, 5, CV_64F);
     memcpy(distortion_coeffs.data, camera_cfg.distortion_coeffs.data(), camera_cfg.distortion_coeffs.size() * sizeof(double));
@@ -84,20 +90,25 @@ int main(int argc, char** argv)
         cv::Mat masked_frame = frame_und.clone();
         setup_mask->roi(masked_frame);
 
-        // detect robots
-        std::vector<cv::Point3f> poses2d = cd.detect(masked_frame); // Detect colour blobs
+        if (!robot_is_top) {
+            // detect robots
+            std::vector<cv::Point3f> poses2d = cd.detect(masked_frame); // Detect colour blobs
 
-        // publish the poses of the individuals that were detected
-        bobi_msgs::PoseVec pv;
-        for (const cv::Point3f& pose2d : poses2d) {
-            bobi_msgs::PoseStamped pose;
-            pose.header = header;
-            pose.pose.xyz.x = pose2d.x * camera_cfg.pix2m;
-            pose.pose.xyz.y = pose2d.y * camera_cfg.pix2m;
-            pose.pose.rpy.yaw = pose2d.z;
-            pv.poses.push_back(pose);
+            // publish the poses of the individuals that were detected
+            bobi_msgs::PoseVec pv;
+            for (const cv::Point3f& pose2d : poses2d) {
+                bobi_msgs::PoseStamped pose;
+                pose.header = header;
+                pose.pose.xyz.x = pose2d.x * camera_cfg.pix2m;
+                pose.pose.xyz.y = pose2d.y * camera_cfg.pix2m;
+                pose.pose.rpy.yaw = pose2d.z;
+                pv.poses.push_back(pose);
+            }
+
+            if (poses2d.size() > 0) {
+                pose_pub.publish(pv);
+            }
         }
-        pose_pub.publish(pv);
 
         // publish raw image
         sensor_msgs::ImagePtr raw_image_ptr = cv_bridge::CvImage(header, "bgr8", frame).toImageMsg();
