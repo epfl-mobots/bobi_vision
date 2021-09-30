@@ -55,7 +55,6 @@ int main(int argc, char** argv)
     image_transport::Publisher raw_image_pub = it.advertise("bottom_camera/image_raw", 1);
     image_transport::Publisher undistorted_image_pub = it.advertise("bottom_camera/image_undistorted", 1);
     image_transport::Publisher masked_image_pub = it.advertise("bottom_camera/image_masked", 1);
-    image_transport::Publisher blob_pub = it.advertise("bottom_camera/image_blobs", 1);
 
     // pose publisher
     ros::Publisher pose_pub;
@@ -73,7 +72,8 @@ int main(int argc, char** argv)
 
     bobi::MaskPtr setup_mask = bobi::MaskFactory()(camera_cfg.mask_type, camera_cfg.mask_specs, cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), CV_8UC3);
 
-    bobi::ColourDetector cd(camera_cfg.led_colours, camera_cfg.hsv_thresholds);
+    bobi::ColourDetector cd(camera_cfg.led_colours, camera_cfg.hsv_thresholds, false);
+    // bobi::ColourDetector cd(camera_cfg.led_colours, camera_cfg.hsv_thresholds, true);
 
     cv::Mat frame;
     cv::Mat frame_und;
