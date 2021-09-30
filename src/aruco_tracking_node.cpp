@@ -98,7 +98,8 @@ int main(int argc, char** argv)
         frame_und = frame_und(roi);
 
         // detect robots
-        std::vector<cv::Vec6d> poses = ar.detect(frame_und);
+        std::vector<cv::Vec6d> poses = ar.detect(frame_und); // TODO: here we should be using the pixel_positions so as to not use the ray traced pos
+
         ar.annotate_image(frame_und);
 
         // publish the poses of the individuals that were detected
@@ -117,6 +118,7 @@ int main(int argc, char** argv)
             pose.header = header;
             pose.pose.xyz.x = conv.response.converted_p.x;
             pose.pose.xyz.y = conv.response.converted_p.y;
+            pose.pose.xyz.z = conv.response.converted_p.z;
             pose.pose.rpy.yaw = angle_to_pipi(pose6d[5] - M_PI / 2);
             pv.poses.push_back(pose);
         }
