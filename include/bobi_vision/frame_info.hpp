@@ -123,7 +123,7 @@ namespace bobi {
                     bobi_msgs::ConvertCoordinates srv;
                     srv.request.p.x = pose.pose.xyz.x;
                     srv.request.p.y = pose.pose.xyz.y;
-                    if (_bottom2top_srv.call(srv)) {
+                    if (_top2bottom_srv.call(srv)) {
                         pose.pose.xyz.x = srv.response.converted_p.x / _bottom_pix2m;
                         pose.pose.xyz.y = srv.response.converted_p.y / _bottom_pix2m;
                     }
@@ -169,7 +169,7 @@ namespace bobi {
                     bobi_msgs::ConvertCoordinates srv;
                     srv.request.p.x = pose.pose.xyz.x;
                     srv.request.p.y = pose.pose.xyz.y;
-                    if (_top2bottom_srv.call(srv)) {
+                    if (_bottom2top_srv.call(srv)) {
                         pose.pose.xyz.x = srv.response.converted_p.x / _top_pix2m;
                         pose.pose.xyz.y = srv.response.converted_p.y / _top_pix2m;
                     }
