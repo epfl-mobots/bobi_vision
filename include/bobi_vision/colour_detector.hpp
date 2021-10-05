@@ -37,6 +37,7 @@ namespace bobi {
             // cv::namedWindow("front");
             // cv::namedWindow("back");
             // cv::namedWindow("blurred");
+            // cv::namedWindow("morph");
         }
 
         std::vector<cv::Point3f> detect(cv::Mat& frame)
@@ -69,9 +70,9 @@ namespace bobi {
 
                     // if (k == 0) {
                     //     cv::imshow("front", binary);
-                    //     ROS_INFO_STREAM("Front (rgb): " << scalar_hsv_to_rgb(led));
-                    //     ROS_INFO_STREAM("Front (lb): " << scalar_hsv_to_rgb(lb));
-                    //     ROS_INFO_STREAM("Front (ub): " << scalar_hsv_to_rgb(ub));
+                    //     // ROS_INFO_STREAM("Front (rgb): " << scalar_hsv_to_rgb(led));
+                    //     // ROS_INFO_STREAM("Front (lb): " << scalar_hsv_to_rgb(lb));
+                    //     // ROS_INFO_STREAM("Front (ub): " << scalar_hsv_to_rgb(ub));
                     // }
                     // else {
                     //     cv::imshow("back", binary);
@@ -80,12 +81,14 @@ namespace bobi {
                     //     ROS_INFO_STREAM("Back (ub): " << scalar_hsv_to_rgb(ub));
                     // }
                     // cv::imshow("blurred", blurred);
-                    // cv::waitKey(10);
 
                     cv::erode(binary, binary, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3), cv::Point(1, 1)));
                     cv::dilate(binary, binary, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5), cv::Point(1, 1)));
                     cv::erode(binary, binary, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3), cv::Point(1, 1)));
                     cv::dilate(binary, binary, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5), cv::Point(1, 1)));
+
+                    // cv::imshow("morph", binary);
+                    // cv::waitKey(10);
 
                     Contours contours;
                     cv::findContours(binary, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
