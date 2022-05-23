@@ -57,7 +57,7 @@ namespace bobi {
             for (size_t idx = 0; idx < _led_colours.size(); ++idx) {
 
                 std::vector<cv::Point> new_contours;
-                for (size_t k = 0; k < 2; ++k) { // TODO: hjh
+                for (size_t k = 0; k < 2; ++k) {
                     const cv::Scalar& led = _led_colours[idx][k];
                     const Tuple7d& thres = _hsv_thresholds[idx][k];
 

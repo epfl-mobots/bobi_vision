@@ -9,7 +9,7 @@ from bobi_msgs.msg import PoseStamped
 
 class CameraMapper:
     def __init__(self):
-        self._start_p = rospy.get_param('start_point', [0.50, 0.25])
+        self._start_p = rospy.get_param('start_point', [0.55, 0.20])
         self._end_p = rospy.get_param('end_point', [1.20, 0.90])
         self._num_samples = rospy.get_param('num_samples', 100)
         self._distance_eps = rospy.get_param('distance_eps', 0.005)

@@ -29,8 +29,8 @@ namespace bobi {
             _config_server.setCallback(f);
 
             // Pose subscribers
-            _naive_poses_sub = _nh->subscribe("naive_poses", 5, &TrajectoryIdentification::_naive_pose_cb, this);
-            _robot_poses_sub = _nh->subscribe("robot_poses", 5, &TrajectoryIdentification::_robot_pose_cb, this);
+            _naive_poses_sub = _nh->subscribe("naive_poses", 1, &TrajectoryIdentification::_naive_pose_cb, this);
+            _robot_poses_sub = _nh->subscribe("robot_poses", 1, &TrajectoryIdentification::_robot_pose_cb, this);
         }
 
         std::vector<bobi_msgs::PoseStamped> filter()
