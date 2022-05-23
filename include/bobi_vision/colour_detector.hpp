@@ -70,9 +70,9 @@ namespace bobi {
 
                     // if (k == 0) {
                     //     cv::imshow("front", binary);
-                    //     // ROS_INFO_STREAM("Front (rgb): " << scalar_hsv_to_rgb(led));
-                    //     // ROS_INFO_STREAM("Front (lb): " << scalar_hsv_to_rgb(lb));
-                    //     // ROS_INFO_STREAM("Front (ub): " << scalar_hsv_to_rgb(ub));
+                    //     ROS_INFO_STREAM("Front (rgb): " << scalar_hsv_to_rgb(led));
+                    //     ROS_INFO_STREAM("Front (lb): " << scalar_hsv_to_rgb(lb));
+                    //     ROS_INFO_STREAM("Front (ub): " << scalar_hsv_to_rgb(ub));
                     // }
                     // else {
                     //     cv::imshow("back", binary);
@@ -82,10 +82,10 @@ namespace bobi {
                     // }
                     // cv::imshow("blurred", blurred);
 
-                    cv::erode(binary, binary, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3), cv::Point(1, 1)));
-                    cv::dilate(binary, binary, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5), cv::Point(1, 1)));
-                    cv::erode(binary, binary, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3), cv::Point(1, 1)));
-                    cv::dilate(binary, binary, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5), cv::Point(1, 1)));
+                    // cv::erode(binary, binary, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3), cv::Point(1, 1)));
+                    // cv::dilate(binary, binary, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5), cv::Point(1, 1)));
+                    // cv::erode(binary, binary, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3), cv::Point(1, 1)));
+                    // cv::dilate(binary, binary, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5), cv::Point(1, 1)));
 
                     // cv::imshow("morph", binary);
                     // cv::waitKey(10);
