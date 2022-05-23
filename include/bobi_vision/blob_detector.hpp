@@ -34,8 +34,7 @@ namespace bobi {
         };
     } // namespace defaults
 
-    BlobDetector
-    {
+    class BlobDetector {
     public:
         BlobDetector(defaults::BlobDetectorConfig config = defaults::BlobDetectorConfig(), bool annotate_frame = false) : _config(config),
                                                                                                                           _background_stor(cv::createBackgroundSubtractorMOG2(_config.bstor_history, _config.var_threshold, _config.detect_shadows)),
@@ -47,7 +46,7 @@ namespace bobi {
             _bd_config_server.setCallback(f);
         }
 
-        std::vector<cv::Point3f> detect(cv::Mat & frame)
+        std::vector<cv::Point3f> detect(cv::Mat& frame)
         {
             if (frame.channels() == 3) {
                 cv::cvtColor(frame, _gray_frame, cv::COLOR_RGB2GRAY);
@@ -106,7 +105,7 @@ namespace bobi {
         }
 
     protected:
-        void _remove_contours(cv::Mat & frame)
+        void _remove_contours(cv::Mat& frame)
         {
             std::vector<std::vector<cv::Point>> contours;
             std::vector<cv::Vec4i> hierarchy;
@@ -129,8 +128,8 @@ namespace bobi {
             }
         }
 
-        void _find_contours(cv::Mat & frame,
-            cv::Mat & annot_frame,
+        void _find_contours(cv::Mat& frame,
+            cv::Mat& annot_frame,
             const std::vector<cv::Point2f>& corners,
             std::vector<cv::Point2f>& centers,
             std::vector<std::vector<cv::Point2f>>& corners_in_contours) const
@@ -201,7 +200,7 @@ namespace bobi {
         defaults::BlobDetectorConfig _config;
 
     private:
-        void _config_cb(bobi_vision::BlobDetectorConfig & config, uint32_t level)
+        void _config_cb(bobi_vision::BlobDetectorConfig& config, uint32_t level)
         {
             ROS_INFO("Updated config");
             _config.num_agents = config.num_agents;

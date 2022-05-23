@@ -58,7 +58,7 @@ namespace bobi {
             draw_poses(frame, individual_poses, camera_loc);
             draw_robot_poses(frame, robot_poses, camera_loc);
             draw_mouse_position(frame, camera_loc);
-            draw_center(frame);
+            draw_center(frame, camera_loc);
             draw_mask(frame, camera_loc);
             draw_target(frame, target_position, camera_loc);
         }
@@ -259,9 +259,16 @@ namespace bobi {
             }
         }
 
-        void draw_center(cv::Mat& frame)
+        void draw_center(cv::Mat& frame, const CameraLocation camera_loc)
         {
-            cv::circle(frame, cv::Point(frame.size().width / 2., frame.size().height / 2.), 2, cv::Scalar(0, 255, 0), cv::FILLED);
+            switch (camera_loc) {
+            case CameraLocation::TOP:
+                cv::circle(frame, cv::Point(frame.size().width / 2., frame.size().height / 2.), 2, cv::Scalar(0, 255, 0), cv::FILLED);
+                break;
+            case CameraLocation::BOTTOM:
+            default:
+                break;
+            }
         }
 
         void draw_mask(cv::Mat& frame, const CameraLocation camera_loc)
