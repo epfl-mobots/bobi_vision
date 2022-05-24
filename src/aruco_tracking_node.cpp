@@ -36,7 +36,7 @@ double angle_to_pipi(double angle)
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "thymio_tracking_node");
+    ros::init(argc, argv, "aruco_tracking_node");
     ros::NodeHandle nh;
     image_transport::ImageTransport it(nh);
 
