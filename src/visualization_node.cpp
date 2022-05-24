@@ -19,14 +19,15 @@ public:
     RawImageWrapper(std::shared_ptr<ros::NodeHandle> nh)
         : _nh(nh),
           _it(*_nh),
-          _window_titles({{"top", "Individual Tracking"}, {"bottom", "Robot Tracking"}}),
-          _fi(_nh, _window_titles)
+          _fi(_nh)
     {
         _frame_sub = _it.subscribe("top_camera/image_undistorted", 1, &RawImageWrapper::_top_und_image_cb, this);
         _bottom_frame_sub = _it.subscribe("bottom_camera/image_undistorted", 1, &RawImageWrapper::bottom_und_image_cb, this);
         _poses_sub = _nh->subscribe("filtered_poses", 1, &RawImageWrapper::_filtered_pose_cb, this);
         _robot_poses_sub = _nh->subscribe("robot_poses", 1, &RawImageWrapper::_robot_pose_cb, this);
         _target_pos_sub = _nh->subscribe("target_position", 1, &RawImageWrapper::_target_pos_cb, this);
+        _robot_annot_image_pub = _it.advertise("bottom_camera/image_annot", 1);
+        _individual_annot_image_pub = _it.advertise("top_camera/image_annot", 1);
 
         _nh->param<double>("top_camera/pix2m", _top_pix2m, 0.001475);
         _nh->param<double>("bottom_camera/pix2m", _bottom_pix2m, 0.002681818182);
@@ -69,14 +70,17 @@ public:
 protected:
     void _top_und_image_cb(const sensor_msgs::ImageConstPtr& msg)
     {
+        std_msgs::Header header;
+        header.stamp = ros::Time::now();
+
         try {
             cv::Mat frame = cv_bridge::toCvShare(msg, "mono8")->image;
             cv::cvtColor(frame, frame, cv::COLOR_GRAY2BGR);
 
             _fi.draw_all(frame, _individual_poses, _robot_poses, _target_position, bobi::CameraLocation::TOP);
 
-            cv::imshow(_window_titles["top"].c_str(), frame);
-            cv::waitKey(10);
+            sensor_msgs::ImagePtr image_ptr = cv_bridge::CvImage(header, "bgr8", frame).toImageMsg();
+            _individual_annot_image_pub.publish(image_ptr);
         }
         catch (cv_bridge::Exception& e) {
             ROS_ERROR("Could not convert from '%s' to 'mono8'.", msg->encoding.c_str());
@@ -85,13 +89,16 @@ protected:
 
     void bottom_und_image_cb(const sensor_msgs::ImageConstPtr& msg)
     {
+        std_msgs::Header header;
+        header.stamp = ros::Time::now();
+
         try {
             cv::Mat frame = cv_bridge::toCvShare(msg, "bgr8")->image;
 
             _fi.draw_all(frame, _individual_poses, _robot_poses, _target_position, bobi::CameraLocation::BOTTOM);
 
-            cv::imshow(_window_titles["bottom"].c_str(), frame);
-            cv::waitKey(10);
+            sensor_msgs::ImagePtr image_ptr = cv_bridge::CvImage(header, "bgr8", frame).toImageMsg();
+            _robot_annot_image_pub.publish(image_ptr);
         }
         catch (cv_bridge::Exception& e) {
             ROS_ERROR("Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
@@ -126,11 +133,11 @@ protected:
     ros::Subscriber _poses_sub;
     ros::Subscriber _robot_poses_sub;
     ros::Subscriber _target_pos_sub;
+    image_transport::Publisher _robot_annot_image_pub;
+    image_transport::Publisher _individual_annot_image_pub;
 
     double _top_pix2m;
     double _bottom_pix2m;
-
-    std::map<std::string, std::string> _window_titles;
 
     FrameInfo _fi;
 };
