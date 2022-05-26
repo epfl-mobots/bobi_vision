@@ -106,9 +106,13 @@ namespace bobi {
 
                 cv::Point3f pose = _poses[idx];
                 if (new_contours.size() == 2) {
-                    pose.x = (new_contours[0].x + new_contours[1].x) / 2.;
-                    pose.y = (new_contours[0].y + new_contours[1].y) / 2.;
-                    pose.z = std::atan2((new_contours[0].y - new_contours[1].y), new_contours[0].x - new_contours[1].x);
+                    cv::Point3f candidate_pose;
+                    candidate_pose.x = (new_contours[0].x + new_contours[1].x) / 2.;
+                    candidate_pose.y = (new_contours[0].y + new_contours[1].y) / 2.;
+                    candidate_pose.z = std::atan2((new_contours[0].y - new_contours[1].y), new_contours[0].x - new_contours[1].x);
+                    if (candidate_pose.x >= 0 && candidate_pose.y >= 0) {
+                        pose = candidate_pose;
+                    }
                 }
                 new_poses.push_back(pose);
                 all_contours.push_back({new_contours});
