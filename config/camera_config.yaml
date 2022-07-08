@@ -1,8 +1,9 @@
 top_camera:
-  using_file: False
+  using_file: True
   camera_dev_no: 2
-  # camera_dev_no: /home/vpapaspy/Desktop/2fish_exps/exp2_lq.mp4
+  # camera_dev_no: "/home/vpapaspy/Desktop/test.mp4"
   # camera_dev_no: /home/vpapaspy/Desktop/5fish_exps/exp1_lq.mp4
+  camera_dev_no: /home/vpapaspy/Desktop/2fish_exps/exp2_lq.mp4
   camera_px_width: 512
   camera_px_height: 512
   fps: 30
@@ -31,7 +32,7 @@ top_camera:
             0.     , 770.24854, 263.07475,   0.     ,
             0.     ,   0.     ,   1.     ,   0.     ]
   mask_type: "Circle"
-  mask: [256, 256, 200]
+  mask: [256, 256, 210]
   
 
 bottom_camera:

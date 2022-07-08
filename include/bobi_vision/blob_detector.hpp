@@ -14,7 +14,7 @@ namespace bobi {
             size_t num_agents = 5;
 
             // background subtractor
-            size_t num_background_samples = 200;
+            size_t num_background_samples = 500;
             int bstor_history = 500;
             double var_threshold = 4;
             bool detect_shadows = false;
@@ -22,15 +22,15 @@ namespace bobi {
             size_t min_contour_size = 0;
 
             // tracking features
-            double quality_level = 0.01;
-            double min_distance = 5.;
-            int block_size = 5;
+            double quality_level = 0.05;
+            double min_distance = 2.;
+            int block_size = 3;
             bool use_harris_dtor = true;
             double k = 0.04;
 
             // Binary threshold
             int threshold_new_value = 80;
-            int threhold_value = 150;
+            int threhold_value = 145;
         };
     } // namespace defaults
 
@@ -188,7 +188,8 @@ namespace bobi {
             std::vector<cv::Point3f> poses(centers.size());
             for (size_t i = 0; i < poses.size(); ++i) {
                 double theta = std::atan2(corners_in_contours[i][0].y - centers[i].y, corners_in_contours[i][0].x - centers[i].x);
-                poses[i] = cv::Point3f(centers[i].x, centers[i].y, theta);
+                // poses[i] = cv::Point3f(centers[i].x, centers[i].y, theta);
+                poses[i] = cv::Point3f(corners_in_contours[i][0].x, corners_in_contours[i][0].y, theta);
             }
             return poses;
         }

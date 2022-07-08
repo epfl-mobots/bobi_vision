@@ -88,6 +88,20 @@ int main(int argc, char** argv)
         // detect individuals
         std::vector<cv::Point3f> poses2d = bd.detect(masked_frame);
 
+        std::vector<int> idcs_to_remove;
+        for (size_t i = 0; i < poses2d.size(); ++i) {
+            cv::patchNaNs(poses2d, -1);
+            if (poses2d[i].x < 0 || poses2d[i].y < 0) {
+                idcs_to_remove.push_back(i);
+            }
+        }
+
+        for (size_t i = 0; i < idcs_to_remove.size(); ++i) {
+            auto it = poses2d.begin();
+            std::advance(it, idcs_to_remove[i] - i);
+            poses2d.erase(it);
+        }
+
         // publish the poses of the individuals that were detected
         bobi_msgs::PoseVec pv;
         for (const cv::Point3f& pose2d : poses2d) {

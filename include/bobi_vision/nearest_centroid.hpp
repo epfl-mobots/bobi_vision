@@ -7,7 +7,14 @@
 #include <numeric>
 #include <algorithm>
 
+#include <numeric>
+#include <algorithm>
+
+#define INVALID -1000
+#define MAX_BL_PER_TS 0.015
+
 namespace bobi {
+
     class NearestCentroid : public FilteringMethodBase {
 
         using AgentPoseList = std::list<std::vector<bobi_msgs::PoseStamped>>;
@@ -19,91 +26,132 @@ namespace bobi {
             size_t num_agents,
             size_t num_robots)
         {
-            if (individual_poses.size() <= 1 || individual_poses.begin()->size() == 0) {
-                return;
+
+            if (_missing_count.size() != num_agents || _toggle_heading.size() != num_agents) {
+                _missing_count = std::vector<int>(num_agents, 0);
+                _toggle_heading = std::vector<bool>(num_agents, false);
             }
 
-            std::vector<int> idcs(num_agents);
-            std::iota(idcs.begin(), idcs.end(), 0);
-
-            auto euc_distance = [](const bobi_msgs::Pose& n, const bobi_msgs::Pose& o) {
+            auto euc_distance = [](const bobi_msgs::PoseStamped& n, const bobi_msgs::PoseStamped& o) {
                 return std::sqrt(
-                    std::pow(o.xyz.x - n.xyz.x, 2.)
-                    + std::pow(o.xyz.y - n.xyz.y, 2.));
+                    std::pow(o.pose.xyz.x - n.pose.xyz.x, 2.)
+                    + std::pow(o.pose.xyz.y - n.pose.xyz.y, 2.));
             };
 
-            auto angle_diff = [&](const bobi_msgs::Pose& n, const bobi_msgs::Pose& o) {
-                return _angle_to_pipi(n.rpy.yaw - o.rpy.yaw);
+            auto angle_sim = [&](const bobi_msgs::PoseStamped& n, const bobi_msgs::PoseStamped& o) {
+                return std::abs(_angle_to_pipi(n.pose.rpy.yaw - o.pose.rpy.yaw));
             };
 
-            // { // assign individual ids according to the robot positions
-            //     AgentPoseList::iterator cur_robot = robot_poses.begin();
-            //     AgentPoseList::iterator cur_ind = individual_poses.begin();
-            //     for (size_t i = 0; i < num_robots; ++i) {
-            //         bobi_msgs::Pose robot_pose = (*cur_robot)[i].pose;
-            //         float min_dist = euc_distance((*cur_ind)[0].pose, robot_pose);
-            //         int idx = 0;
-            //         for (size_t j = 1; j < (*cur_ind).size(); ++j) {
-            //             float dist = euc_distance((*cur_ind)[j].pose, robot_pose);
-            //             if (dist < min_dist) {
-            //                 min_dist = dist;
-            //                 idx = j;
-            //             }
-            //         }
-            //         bobi_msgs::PoseStamped tmp = (*cur_ind)[i];
-            //         (*cur_ind)[i] = (*cur_ind)[idx];
-            //         (*cur_ind)[idx] = tmp;
-            //         idcs.erase(std::remove(idcs.begin(), idcs.end(), i), idcs.end());
-            //     }
-            // }
-
-            AgentPoseList::iterator cur = individual_poses.begin();
-            AgentPoseList::iterator prev = individual_poses.begin();
-            std::advance(prev, 1);
-
-            if ((*cur).size() == 0) {
-                return;
+            auto t0 = individual_poses.begin();
+            auto t1 = individual_poses.begin();
+            std::advance(t1, 1);
+            size_t missing_ind = std::abs((int)t0->size() - (int)t1->size());
+            for (size_t i = 0; i < missing_ind; ++i) {
+                bobi_msgs::PoseStamped p;
+                p.pose.xyz.x = INVALID;
+                p.pose.xyz.y = INVALID;
+                p.pose.rpy.yaw = INVALID;
+                (*t0).push_back(p);
             }
 
-            std::cout << "ok1" << std::endl;
-            std::vector<bobi_msgs::PoseStamped> ind_poses_cpy(*cur);
-            for (size_t i = 0; i < (*cur).size(); ++i) {
-                float min_dist = euc_distance((*cur)[i].pose, (*prev)[idcs[0]].pose);
-                float min_angle_diff = abs(angle_diff((*cur)[i].pose, (*prev)[idcs[0]].pose)) / M_PI;
-                float min_val = (min_dist * min_angle_diff)
-                    / (std::pow(min_dist, 2.), std::pow(min_angle_diff, 2.));
-                int idx = idcs[0];
+            // check for nearest centroids and match with past trajectories
+            { // first pass of assigning ids. Here, missing ids are left for post-inference
+                bobi_msgs::PoseStamped inv;
+                inv.pose.xyz.x = INVALID;
+                inv.pose.xyz.y = INVALID;
+                inv.pose.rpy.yaw = INVALID;
+                AgentPose copy(num_agents, inv);
+                for (size_t i = 0; i < t0->size(); ++i) {
 
-                for (size_t j = 0; j < (*cur).size(); ++j) {
-                    float dist = euc_distance((*cur)[i].pose, (*prev)[j].pose);
-                    float ad = abs(angle_diff((*cur)[i].pose, (*prev)[j].pose)) / M_PI;
-                    float val = (dist * ad)
-                        / (std::pow(dist, 2.) * std::pow(ad, 2.));
+                    float min_dist = std::numeric_limits<float>::infinity();
+                    int min_idx = INVALID;
 
-                    if (val < min_val && std::find(idcs.begin(), idcs.end(), j) != idcs.end()) {
-                        min_val = val;
-                        idx = j;
+                    for (size_t j = 0; j < t1->size(); ++j) {
+                        float tolerance = MAX_BL_PER_TS * (_missing_count[j] + 1);
+                        float dist = euc_distance((*t0)[i], (*t1)[j]);
+                        float angle = angle_sim((*t0)[i], (*t1)[j]);
+                        if ((dist < min_dist) && (dist <= tolerance)) {
+                            min_dist = dist;
+                            min_idx = j;
+                        }
+                    }
+                    if (min_idx != INVALID) {
+                        copy[min_idx] = (*t0)[i];
+                        _missing_count[min_idx] = 0;
                     }
                 }
-                std::cout << "ok2" << std::endl;
-                bobi_msgs::PoseStamped tmp = ind_poses_cpy[idx];
-                ind_poses_cpy[idx] = ind_poses_cpy[i];
-                ind_poses_cpy[i] = tmp;
-                std::cout << "ok3" << std::endl;
-
-                idcs.erase(std::remove(idcs.begin(), idcs.end(), idx), idcs.end());
-                std::cout << "ok4" << std::endl;
+                t0->resize(num_agents);
+                std::copy(copy.begin(), copy.end(), t0->begin());
             }
 
-            std::cout << "ok5" << std::endl;
+            { // second pass of assigning ids. Attempt to see if t-1 is close to any other fish from t (perhaps the 2 are too close)
+                AgentPose copy(*t0);
+                for (size_t i = 0; i < t0->size(); ++i) {
+                    if ((*t0)[i].pose.xyz.x == INVALID && _missing_count[i] == 1) {
+                        bobi_msgs::PoseStamped last_valid = (*t1)[i];
+                        float min_dist = std::numeric_limits<float>::infinity();
+                        int min_idx = INVALID;
 
-            for (const int idx : idcs) {
-                std::cout << ind_poses_cpy.size() << " " << idx << " " << prev->size() << std::endl;
-                ind_poses_cpy.insert(ind_poses_cpy.begin() + idx, (*prev)[idx]);
+                        for (size_t j = 0; j < t0->size(); ++j) {
+                            if ((*t0)[j].pose.xyz.x == INVALID) {
+                                continue;
+                            }
+                            else {
+                                float tolerance = MAX_BL_PER_TS;
+                                float dist = euc_distance((*t0)[j], last_valid);
+                                float angle = angle_sim((*t0)[j], last_valid);
+                                if ((dist < min_dist) && (dist <= tolerance)) {
+                                    min_dist = dist;
+                                    min_idx = j;
+                                }
+                            }
+                        }
+                        if (min_idx != INVALID) {
+                            copy[i] = (*t0)[min_idx];
+                        }
+                    }
+                }
+
+                t0->resize(num_agents);
+                std::copy(copy.begin(), copy.end(), t0->begin());
             }
-            std::cout << "ok6" << std::endl;
 
-            *cur = ind_poses_cpy;
+            // find missing fish and attempt to estimate/handle the missing position
+            for (size_t i = 0; i < t0->size(); ++i) {
+                if ((*t0)[i].pose.xyz.x == INVALID) {
+                    ++_missing_count[i];
+                    (*t0)[i] = (*t1)[i];
+                    if (individual_poses.size() > 2 && _missing_count[i] <= 2) {
+                        auto t2 = individual_poses.begin();
+                        std::advance(t2, 2);
+                        bobi_msgs::PoseStamped p;
+                        p.pose.xyz.x = ((*t1)[i].pose.xyz.x - (*t2)[i].pose.xyz.x) + (*t1)[i].pose.xyz.x;
+                        p.pose.xyz.y = ((*t1)[i].pose.xyz.y - (*t2)[i].pose.xyz.y) + (*t1)[i].pose.xyz.y;
+                        p.pose.rpy.yaw = _angle_to_pipi(_angle_to_pipi((*t1)[i].pose.rpy.yaw - (*t2)[i].pose.rpy.yaw) + (*t1)[i].pose.rpy.yaw);
+
+                        if (euc_distance(p, (*t0)[i]) <= MAX_BL_PER_TS) {
+                            (*t0)[i] = p;
+                        }
+                    }
+                }
+
+                // if angle change is too big then we can assume that the tracking system
+                // is reporting the angle + 180. We correct this change by toggling the angle
+                // back to what we think is the correct value
+                float abs_angle_change = abs(_angle_to_pipi((*t0)[i].pose.rpy.yaw - (*t1)[i].pose.rpy.yaw));
+                if (abs_angle_change > 5. * M_PI / 6.) {
+                    if (_toggle_heading[i]) {
+                        _toggle_heading[i] = false;
+                    }
+                    else {
+                        (*t0)[i].pose.rpy.yaw = _angle_to_pipi((*t0)[i].pose.rpy.yaw + M_PI);
+                        _toggle_heading[i] = true;
+                    }
+                }
+                else {
+                    _toggle_heading[i] = false;
+                }
+            }
         }
 
     protected:
@@ -122,6 +170,9 @@ namespace bobi {
             }
             return angle;
         }
+
+        std::vector<int> _missing_count;
+        std::vector<bool> _toggle_heading;
     };
 } // namespace bobi
 
