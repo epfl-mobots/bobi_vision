@@ -10,7 +10,7 @@ namespace bobi {
         using AgentPose = std::vector<bobi_msgs::PoseStamped>;
         using AgentPoseList = std::list<AgentPose>;
 
-        FilteringMethodBase()
+        FilteringMethodBase(bool force_robot_position = true) : _force_robot_position(force_robot_position)
         {
             std::srand(time(NULL));
         }
@@ -24,6 +24,7 @@ namespace bobi {
         }
 
     protected:
+        bool _force_robot_position;
     };
 } // namespace bobi
 

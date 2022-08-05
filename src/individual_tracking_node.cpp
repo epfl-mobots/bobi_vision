@@ -66,6 +66,7 @@ int main(int argc, char** argv)
 
     cv::Rect roi;
     cv::Mat new_camera_mat = cv::getOptimalNewCameraMatrix(camera_mat, distortion_coeffs, cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), 1., cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), &roi);
+    ROS_WARN("Undistorted image ROI set to: %d x %d", roi.size().width, roi.size().height);
 
     bobi::MaskPtr setup_mask = bobi::MaskFactory()(camera_cfg.mask_type, camera_cfg.mask_specs, cv::Size(camera_cfg.camera_px_width, camera_cfg.camera_px_height), CV_8UC3);
 

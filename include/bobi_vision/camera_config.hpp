@@ -13,6 +13,8 @@ namespace bobi {
             std::string camera_dev_no = "2";
             int camera_px_width = 512;
             int camera_px_height = 512;
+            int camera_px_width_undistorted = 507;
+            int camera_px_height_undistorted = 508;
             int fps = 30;
             double pix2m = 0.001475;
             std::vector<double> camera_matrix = {
@@ -33,6 +35,8 @@ namespace bobi {
             nh.param<std::string>("top_camera/camera_dev_no", top_camera.camera_dev_no, top_camera.camera_dev_no);
             nh.param<int>("top_camera/camera_px_width", top_camera.camera_px_width, top_camera.camera_px_width);
             nh.param<int>("top_camera/camera_px_height", top_camera.camera_px_height, top_camera.camera_px_height);
+            nh.param<int>("top_camera/camera_px_width_undistorted", top_camera.camera_px_width_undistorted, top_camera.camera_px_width_undistorted);
+            nh.param<int>("top_camera/camera_px_height_undistorted", top_camera.camera_px_height_undistorted, top_camera.camera_px_height_undistorted);
             nh.param<int>("top_camera/fps", top_camera.fps, top_camera.fps);
             nh.param<double>("top_camera/pix2m", top_camera.pix2m, top_camera.pix2m);
             nh.param<std::vector<double>>("top_camera/camera_matrix", top_camera.camera_matrix, top_camera.camera_matrix);
@@ -50,6 +54,8 @@ namespace bobi {
             std::string camera_dev_no = "3";
             int camera_px_width = 640;
             int camera_px_height = 480;
+            int camera_px_width_undistorted = 617;
+            int camera_px_height_undistorted = 388;
             int fps = 30;
             double pix2m = 0.002681818182;
             std::vector<double> camera_matrix = {
@@ -72,6 +78,8 @@ namespace bobi {
             nh.param<std::string>("bottom_camera/camera_dev_no", bottom_camera.camera_dev_no, bottom_camera.camera_dev_no);
             nh.param<int>("bottom_camera/camera_px_width", bottom_camera.camera_px_width, bottom_camera.camera_px_width);
             nh.param<int>("bottom_camera/camera_px_height", bottom_camera.camera_px_height, bottom_camera.camera_px_height);
+            nh.param<int>("bottom_camera/camera_px_width_undistorted", bottom_camera.camera_px_width_undistorted, bottom_camera.camera_px_width_undistorted);
+            nh.param<int>("bottom_camera/camera_px_height_undistorted", bottom_camera.camera_px_height_undistorted, bottom_camera.camera_px_height_undistorted);
             nh.param<int>("bottom_camera/fps", bottom_camera.fps, bottom_camera.fps);
             nh.param<double>("bottom_camera/pix2m", bottom_camera.pix2m, bottom_camera.pix2m);
             nh.param<std::vector<double>>("bottom_camera/camera_matrix", bottom_camera.camera_matrix, bottom_camera.camera_matrix);

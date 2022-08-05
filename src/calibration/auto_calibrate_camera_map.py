@@ -22,7 +22,7 @@ class CameraMapper:
         self._top_pose = None
         self._bottom_pose = None
 
-        rospy.Subscriber("naive_poses", PoseVec, self._top_poses_cb)
+        rospy.Subscriber("filtered_poses", PoseVec, self._top_poses_cb)
         rospy.Subscriber("robot_poses", PoseVec, self._bottom_poses_cb)
         self._goal_pub = rospy.Publisher(
             'target_position', PoseStamped, queue_size=1)

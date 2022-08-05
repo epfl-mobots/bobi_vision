@@ -37,8 +37,8 @@ public:
         // top camera info
         int top_camera_px_width;
         int top_camera_px_height;
-        nh->param<int>("top_camera/camera_px_width", top_camera_px_width, 512);
-        nh->param<int>("top_camera/camera_px_height", top_camera_px_height, 512);
+        nh->param<int>("top_camera/camera_px_width_undistorted", top_camera_px_width, 512);
+        nh->param<int>("top_camera/camera_px_height_undistorted", top_camera_px_height, 512);
 
         std::string top_mask_type;
         std::vector<int> top_mask_specs;
@@ -51,8 +51,8 @@ public:
         // bottom camera info
         int bottom_camera_px_width;
         int bottom_camera_px_height;
-        nh->param<int>("bottom_camera/camera_px_width", bottom_camera_px_width, 640);
-        nh->param<int>("bottom_camera/camera_px_height", bottom_camera_px_height, 480);
+        nh->param<int>("bottom_camera/camera_px_width_undistorted", bottom_camera_px_width, 640);
+        nh->param<int>("bottom_camera/camera_px_height_undistorted", bottom_camera_px_height, 480);
 
         std::string bottom_mask_type;
         std::vector<int> bottom_mask_specs;

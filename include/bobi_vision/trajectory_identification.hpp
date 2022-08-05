@@ -53,6 +53,11 @@ namespace bobi {
             }
         }
 
+        AgentPoseList filtered_list()
+        {
+            return _filtered_pose_list;
+        }
+
     protected:
         void _naive_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
         {
@@ -110,9 +115,11 @@ namespace bobi {
         {
             std::lock_guard<std::mutex> guard(_cfg_mutex);
             bool success;
+            _force_robot_position = config.force_robot_position;
             _num_agents = config.num_agents;
             _num_robots = config.num_robots;
-            std::tie(_filter, success) = _method_factory(config.method);
+            _num_virtu_agents = config.num_virtu_agents;
+            std::tie(_filter, success) = _method_factory(_nh, config.method, _force_robot_position);
             if (success) {
                 ROS_INFO("Trajectory Identification method changed");
                 _filtered_pose_list.clear();
@@ -136,6 +143,8 @@ namespace bobi {
 
         size_t _num_agents;
         size_t _num_robots;
+        size_t _num_virtu_agents;
+        bool _force_robot_position;
         bool _init_successful;
 
         std::shared_ptr<FilteringMethodBase> _filter;

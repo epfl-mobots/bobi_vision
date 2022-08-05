@@ -3,9 +3,8 @@ project(bobi_vision)
 
 add_compile_options(-std=c++17)
 
-
 file(GLOB TRACKING_SOURCES
-    src/*.cpp
+  src/*.cpp
 )
 list(FILTER TRACKING_SOURCES EXCLUDE REGEX "individual_tracking_node.cpp")
 list(FILTER TRACKING_SOURCES EXCLUDE REGEX "visualization_node.cpp")
@@ -17,16 +16,17 @@ list(FILTER TRACKING_SOURCES EXCLUDE REGEX "click_to_waypoint_node.cpp")
 list(FILTER TRACKING_SOURCES EXCLUDE REGEX "click_to_waypoint_rqt_node.cpp")
 
 find_package(
-    catkin REQUIRED COMPONENTS
-    roscpp
-    rospy
-    geometry_msgs
-    sensor_msgs
-    image_transport
-    cv_bridge
-    dynamic_reconfigure
+  catkin REQUIRED COMPONENTS
+  roscpp
+  rospy
+  geometry_msgs
+  sensor_msgs
+  image_transport
+  cv_bridge
+  dynamic_reconfigure
 )
 find_package(OpenCV REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 generate_dynamic_reconfigure_options(
   config/BlobDetector.cfg
@@ -36,12 +36,14 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   CATKIN_DEPENDS bobi_msgs
+  DEPENDS EIGEN3
 )
 
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
 add_executable(individual_tracking_node src/individual_tracking_node.cpp ${TRACKING_SOURCES})

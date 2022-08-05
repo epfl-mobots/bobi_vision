@@ -11,12 +11,17 @@ namespace bobi {
     public:
         virtual void roi(cv::Mat& frame) {}
         virtual void draw_roi(cv::Mat& frame, const cv::Scalar& colour) const {}
+        virtual const std::string type() { return "Base"; }
+        virtual cv::Point2f center() { return cv::Point2f(0, 0); }
     };
 
     class RectangleMask : public Mask {
     public:
         RectangleMask(int sx, int sy, int ex, int ey)
-            : _roi(cv::Rect(sx, sy, ex - sx, ey - sy)) {}
+            : _roi(cv::Rect(sx, sy, ex - sx, ey - sy)),
+              _center((ex + sx) / 2., (ey + sy) / 2.)
+        {
+        }
 
         void roi(cv::Mat& frame)
         {
@@ -30,8 +35,19 @@ namespace bobi {
             cv::rectangle(frame, _roi, colour);
         }
 
+        const std::string type() override
+        {
+            return "RectangleMask";
+        }
+
+        virtual cv::Point2f center() override
+        {
+            return _center;
+        }
+
     protected:
         cv::Rect _roi;
+        cv::Point2f _center;
     };
 
     class CircleMask : public Mask {
@@ -49,6 +65,16 @@ namespace bobi {
         void draw_roi(cv::Mat& frame, const cv::Scalar& colour) const
         {
             cv::circle(frame, cv::Point(_x, _y), _r, colour);
+        }
+
+        const std::string type() override
+        {
+            return "CircleMask";
+        }
+
+        virtual cv::Point2f center() override
+        {
+            return cv::Point2f(_x, _y);
         }
 
     protected:

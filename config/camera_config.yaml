@@ -6,8 +6,13 @@ top_camera:
   # camera_dev_no: /home/vpapaspy/Desktop/2fish_exps/exp2_lq.mp4
   camera_px_width: 512
   camera_px_height: 512
+  camera_px_width_undistorted: 507
+  camera_px_height_undistorted: 508
   fps: 30
-  pix2m: 0.001475
+  # pix2m: 0.001475
+  # pix2m: 0.001329787
+  # pix2m: 0.001250877
+  pix2m: 0.001232759
   camera_matrix:
     rows: 3
     cols: 3
@@ -32,15 +37,18 @@ top_camera:
             0.     , 770.24854, 263.07475,   0.     ,
             0.     ,   0.     ,   1.     ,   0.     ]
   mask_type: "Circle"
-  mask: [256, 256, 210]
+  mask: [256, 256, 220]
+  # mask: [256, 256, 188]
   
 
 bottom_camera:
   camera_dev_no: 3
   camera_px_width: 640
   camera_px_height: 480
+  camera_px_width_undistorted: 617
+  camera_px_height_undistorted: 388
   fps: 30
-  pix2m: 0.002681818182
+  pix2m: 0.002201031
   camera_matrix:
     rows: 3
     cols: 3

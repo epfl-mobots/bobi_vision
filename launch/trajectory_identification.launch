@@ -2,6 +2,13 @@
 
     <arg name="ns" default="/" />
     <group ns="$(arg ns)">
+        <rosparam>
+            replay:
+                replay_file_path: "/home/vpapaspy/Desktop/pose_003.dat"
+                radius: 0.25
+                scale: 0.0096
+        </rosparam>
+
         <node name="trajectory_identification_node" pkg="bobi_vision" type="trajectory_identification_node" output="screen"/>
     </group>
 
