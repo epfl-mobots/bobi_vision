@@ -20,7 +20,11 @@ sleep 2
 sudo modprobe v4l2loopback devices=4 exclusive_caps=0,0,0,0
 sleep 4
 
-gst-launch-1.0 pylonsrc camera=0 sensorreadoutmode=normal exposure=30110 gamma=0.61 gain=9.0  width=2848 height=2848 offsetx=548 offsety=100 fps=30 flipy=true flipx=true imageformat=mono8 \
+# gst-launch-1.0 pylonsrc camera=0 sensorreadoutmode=normal exposure=30110 gamma=0.61 gain=9.0  width=2848 height=2848 offsetx=548 offsety=100 fps=30 flipy=true flipx=true imageformat=mono8 \
+# # 		 ! videoconvert ! tee ! v4l2sink device=/dev/video0 sync=false &
+# gst-launch-1.0 pylonsrc camera=0 sensorreadoutmode=normal exposure=30110 gamma=0.61 gain=12.0  width=2848 height=2848 offsetx=548 offsety=100 fps=30 flipy=true flipx=true imageformat=mono8 \
+# 		 ! videoconvert ! tee ! v4l2sink device=/dev/video0 sync=false &
+gst-launch-1.0 pylonsrc camera=0 sensorreadoutmode=normal exposure=30110 gamma=0.55 gain=1.2  width=2848 height=2848 offsetx=548 offsety=100 fps=30 flipy=true flipx=true imageformat=mono8 \
 		 ! videoconvert ! tee ! v4l2sink device=/dev/video0 sync=false &
 sleep 8
 
