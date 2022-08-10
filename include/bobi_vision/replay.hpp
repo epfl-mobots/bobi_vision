@@ -37,6 +37,8 @@ namespace bobi {
             assert(nh->getParam("top_camera/pix2m", pix2m));
             assert(nh->getParam("replay/radius", _radius));
             assert(nh->getParam("replay/scale", _scale));
+            assert(nh->getParam("replay/cols_iter", _cols_iter));
+            assert(nh->getParam("replay/num_ind_replay", _num_ind_replay));
             _center[0] = _center[0] / 2. * pix2m;
             _center[1] = _center[1] / 2. * pix2m;
             ROS_INFO("Replaying trajectories in setup with center (%f, %f) (in m)", _center[0], _center[1]);
@@ -51,24 +53,43 @@ namespace bobi {
         {
             _filter->operator()(individual_poses, robot_poses, num_agents, num_robots);
 
+            int start_idx = 1;
+            if (_cols_iter < 3) {
+                start_idx = 0;
+            }
             if (individual_poses.size() == 2) {
                 auto t1 = std::next(individual_poses.begin());
-                for (size_t i = 1; i < static_cast<int>((_replay_data.cols() - 1) / 3); ++i) {
+                for (size_t i = start_idx; i < _num_ind_replay; ++i) {
                     bobi_msgs::PoseStamped p;
-                    p.pose.xyz.x = _replay_data(_current_iter, i * 3 + 1) + _center[0];
-                    p.pose.xyz.y = _replay_data(_current_iter, i * 3 + 2) + _center[1];
-                    p.pose.rpy.yaw = _replay_data(_current_iter, i * 3 + 3);
+                    p.pose.xyz.x = _replay_data(_current_iter, i * _cols_iter + 1) + _center[0];
+                    p.pose.xyz.y = _replay_data(_current_iter, i * _cols_iter + 2) + _center[1];
+                    if (_cols_iter > 2) {
+                        p.pose.rpy.yaw = _replay_data(_current_iter, i * _cols_iter + 3);
+                    }
+                    else {
+                        p.pose.rpy.yaw = 0;
+                    }
                     (*t1).push_back(p);
                 }
                 ++_current_iter;
             }
 
             auto t0 = individual_poses.begin();
-            for (size_t i = 1; i < static_cast<int>((_replay_data.cols() - 1) / 3); ++i) {
+            auto t1 = std::next(individual_poses.begin());
+            for (size_t i = start_idx; i < _num_ind_replay; ++i) {
                 bobi_msgs::PoseStamped p;
-                p.pose.xyz.x = _replay_data(_current_iter, i * 3 + 1) * _scale + _center[0];
-                p.pose.xyz.y = _replay_data(_current_iter, i * 3 + 2) * _scale + _center[1];
-                p.pose.rpy.yaw = _replay_data(_current_iter, i * 3 + 3);
+                p.pose.xyz.x = _replay_data(_current_iter, i * _cols_iter + 1) * _scale + _center[0];
+                p.pose.xyz.y = _replay_data(_current_iter, i * _cols_iter + 2) * _scale + _center[1];
+                if (_cols_iter > 2) {
+                    p.pose.rpy.yaw = _replay_data(_current_iter, i * _cols_iter + 3);
+                }
+                else {
+                    int idx = (*t0).size();
+                    bobi_msgs::PoseStamped prev_p = (*t1)[idx];
+                    p.pose.rpy.yaw = std::atan2(p.pose.xyz.y - prev_p.pose.xyz.y, p.pose.xyz.x - prev_p.pose.xyz.x);
+                }
+
+                p.header.stamp = ros::Time::now();
                 (*t0).push_back(p);
             }
             ++_current_iter;
@@ -122,6 +143,8 @@ namespace bobi {
         std::array<float, 2> _center;
         float _radius;
         float _scale;
+        int _cols_iter;
+        int _num_ind_replay;
     };
 } // namespace bobi
 
