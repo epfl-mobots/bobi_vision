@@ -12,7 +12,7 @@
 
 #define INVALID -1000
 #define BL 3.5
-#define MAX_BL_PER_TS 0.013
+#define MAX_BL_PER_TS 0.02
 
 namespace bobi {
 
@@ -118,18 +118,24 @@ namespace bobi {
                     for (int idx : missing_robot_idcs) {
                         // double dt = std::max(0.1, (*r0)[idx].pose.header.stamp.toSec() - (*r1)[idx].pose.header.stamp.toSec());
                         if (_missing_robot_count[idx] == 0) {
-                            ++_missing_robot_count[idx];
-                            double dx = (*r0)[idx].pose.xyz.x - (*r1)[idx].pose.xyz.x;
-                            double dy = (*r0)[idx].pose.xyz.y - (*r1)[idx].pose.xyz.y;
-                            double dyaw = _angle_to_pipi((*r0)[idx].pose.rpy.yaw - (*r1)[idx].pose.rpy.yaw);
-                            bobi_msgs::PoseStamped new_p;
-                            new_p.pose.xyz.x += dx;
-                            new_p.pose.xyz.y += dy;
-                            new_p.pose.rpy.yaw = _angle_to_pipi(new_p.pose.rpy.yaw + dyaw);
-                            copy[idx] = new_p; // try to handle single frame losses by filling in the trajectory
+                            if (_force_robot_position) {
+                                copy[idx] = (*r0)[idx];
+                            }
+                            else {
+                                ++_missing_robot_count[idx];
+                                double dx = (*r0)[idx].pose.xyz.x - (*r1)[idx].pose.xyz.x;
+                                double dy = (*r0)[idx].pose.xyz.y - (*r1)[idx].pose.xyz.y;
+                                double dyaw = _angle_to_pipi((*r0)[idx].pose.rpy.yaw - (*r1)[idx].pose.rpy.yaw);
+                                bobi_msgs::PoseStamped new_p;
+                                new_p.pose.xyz.x += dx;
+                                new_p.pose.xyz.y += dy;
+                                new_p.pose.rpy.yaw = _angle_to_pipi(new_p.pose.rpy.yaw + dyaw);
+                                copy[idx] = new_p; // try to handle single frame losses by filling in the trajectory
+                            }
                         }
                         else {
                             copy[idx] = (*t1)[idx]; // revert to last valid position to (hopefully) force the behavioural model to recover the lure on its own !! this is not guaranteed
+                            copy[idx].header.stamp = ros::Time::now();
                         }
                     }
                 }
@@ -205,6 +211,7 @@ namespace bobi {
                 if ((*t0)[i].pose.xyz.x == INVALID) {
                     ++_missing_count[i];
                     (*t0)[i] = (*t1)[i];
+                    (*t0)[i].header.stamp = ros::Time::now();
                     if (individual_poses.size() > 2 && _missing_count[i] <= 2) {
                         auto t2 = individual_poses.begin();
                         std::advance(t2, 2);
@@ -212,6 +219,7 @@ namespace bobi {
                         p.pose.xyz.x = ((*t1)[i].pose.xyz.x - (*t2)[i].pose.xyz.x) + (*t1)[i].pose.xyz.x;
                         p.pose.xyz.y = ((*t1)[i].pose.xyz.y - (*t2)[i].pose.xyz.y) + (*t1)[i].pose.xyz.y;
                         p.pose.rpy.yaw = _angle_to_pipi(_angle_to_pipi((*t1)[i].pose.rpy.yaw - (*t2)[i].pose.rpy.yaw) + (*t1)[i].pose.rpy.yaw);
+                        p.header.stamp = ros::Time::now();
 
                         if (euc_distance(p, (*t0)[i]) <= MAX_BL_PER_TS) {
                             (*t0)[i] = p;
