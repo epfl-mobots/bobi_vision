@@ -106,9 +106,7 @@ int main(int argc, char** argv)
                 pv.poses.push_back(pose);
             }
 
-            if (poses2d.size() > 0) {
-                pose_pub.publish(pv);
-            }
+            pose_pub.publish(pv);
         }
 
         // publish raw image

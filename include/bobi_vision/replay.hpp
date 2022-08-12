@@ -51,12 +51,12 @@ namespace bobi {
             size_t num_agents,
             size_t num_robots)
         {
-            _filter->operator()(individual_poses, robot_poses, num_agents, num_robots);
-
             int start_idx = 1;
             if (_cols_iter < 3) {
                 start_idx = 0;
             }
+
+            ROS_INFO("ok3 %ld", individual_poses.size());
             if (individual_poses.size() == 2) {
                 auto t1 = std::next(individual_poses.begin());
                 for (size_t i = start_idx; i < _num_ind_replay; ++i) {
@@ -74,6 +74,7 @@ namespace bobi {
                 ++_current_iter;
             }
 
+            ROS_INFO("ok4");
             auto t0 = individual_poses.begin();
             auto t1 = std::next(individual_poses.begin());
             for (size_t i = start_idx; i < _num_ind_replay; ++i) {
@@ -96,6 +97,10 @@ namespace bobi {
             if (_current_iter == _replay_data.rows()) {
                 _current_iter = 0;
             }
+
+            ROS_INFO("ok1");
+            _filter->operator()(individual_poses, robot_poses, num_agents + _num_ind_replay, num_robots);
+            ROS_INFO("ok2");
         }
 
     protected:
