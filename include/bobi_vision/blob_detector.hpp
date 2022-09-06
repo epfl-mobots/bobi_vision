@@ -14,23 +14,23 @@ namespace bobi {
             size_t num_agents = 5;
 
             // background subtractor
-            size_t num_background_samples = 500;
-            int bstor_history = 500;
-            double var_threshold = 4;
+            size_t num_background_samples = 50;
+            int bstor_history = 50;
+            double var_threshold = 1;
             bool detect_shadows = false;
             float learning_rate = 0.05;
-            size_t min_contour_size = 0;
+            size_t min_contour_size = 3;
 
             // tracking features
-            double quality_level = 0.05;
+            double quality_level = 0.04;
             double min_distance = 2.;
             int block_size = 3;
             bool use_harris_dtor = true;
             double k = 0.04;
 
             // Binary threshold
-            int threshold_new_value = 80;
-            int threhold_value = 145;
+            int threhold_value = 105;
+            int threshold_new_value = 255;
         };
     } // namespace defaults
 
@@ -54,8 +54,9 @@ namespace bobi {
             else {
                 _gray_frame = frame.clone();
             }
+            cv::Mat og_frame = _gray_frame.clone();
 
-            cv::threshold(_gray_frame, _gray_frame, _config.threhold_value, _config.threshold_new_value, cv::THRESH_BINARY);
+            cv::threshold(_gray_frame, _gray_frame, _config.threhold_value, _config.threshold_new_value, cv::THRESH_BINARY_INV);
 
             if (_background_counter < _config.num_background_samples) {
                 _background_stor.get()->apply(_gray_frame, _foreground_frame, _config.learning_rate);
@@ -63,15 +64,26 @@ namespace bobi {
                 return std::vector<cv::Point3f>();
             }
 
-            _background_stor.get()->apply(_gray_frame, _foreground_frame, 0.);
+            _background_stor.get()->apply(_gray_frame, _foreground_frame, 0.001);
             _remove_contours(_foreground_frame);
             _blob_frame = _foreground_frame.clone();
+
+            {
+                int an = 1;
+                cv::Mat element = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(an * 2 + 1, an * 2 + 1), cv::Point(an, an));
+                cv::erode(_blob_frame, _blob_frame, element, cv::Point(-1, -1), 1);
+                cv::morphologyEx(_blob_frame, _blob_frame, cv::MORPH_CLOSE, element, cv::Point(-1, -1), 1);
+            }
+            {
+                cv::Mat element = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2, 2), cv::Point(-1, -1));
+                cv::dilate(_blob_frame, _blob_frame, element, cv::Point(-1, -1), 2);
+            }
 
             std::vector<cv::Point2f> corners;
             std::vector<cv::Point2f> centers;
             std::vector<std::vector<cv::Point2f>> corners_in_contours;
             try {
-                cv::goodFeaturesToTrack(_gray_frame,
+                cv::goodFeaturesToTrack(og_frame,
                     corners,
                     _config.num_agents,
                     _config.quality_level,
@@ -140,7 +152,7 @@ namespace bobi {
                 cv::findContours(frame, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
             }
             catch (const cv::Exception& e) {
-                ROS_ERROR("OpenCV exception: %s", e.what());
+                // ROS_ERROR("OpenCV exception: %s", e.what());
             }
 
             if (_annotate_frame && hierarchy.size() > 0) {
@@ -152,19 +164,28 @@ namespace bobi {
 
             std::vector<std::vector<cv::Point>> contours_poly;
             contours_poly.resize(contours.size());
-
             std::vector<cv::Point2f> corners_in_contour;
             for (size_t i = 0; i < contours.size(); ++i) {
                 cv::approxPolyDP(cv::Mat(contours[i]), contours_poly[i], 3, true);
                 corners_in_contour.clear();
+                double min_dist = std::numeric_limits<double>::infinity();
+                cv::Point2f min_corner;
+
                 for (auto& corner : corners) {
-                    if (cv::pointPolygonTest(contours[i], corner, false) >= 0) {
+                    double contour_dist = cv::pointPolygonTest(contours[i], corner, true);
+                    if (contour_dist >= 0) {
                         corners_in_contour.push_back(corner);
                     }
                 }
                 if (corners_in_contour.size() > 0) {
                     centers.push_back(_contour_center(contours[i]));
                     corners_in_contours.push_back(corners_in_contour);
+                    // for (size_t j = 0; j < corners_in_contour.size(); ++j) {
+                    //     centers.push_back(_contour_center(contours[i]));
+                    //     // std::vector<cv::Point2f> closest_corner = {corners_in_contour[j]};
+                    //     std::vector<cv::Point2f> closest_corner = {corners_in_contour[i]};
+                    //     corners_in_contours.push_back(corners_in_contour);
+                    // }
                 }
             }
 

@@ -13,7 +13,7 @@
         <!-- <include file="$(find bobi_vision)/launch/click_to_waypoint.launch" /> -->
         <include file="$(find bobi_vision)/launch/click_to_waypoint_rqt.launch" />
 
-        <node name = "rqt_dashboard" pkg = "rqt_gui" type = "rqt_gui" respawn = "false" output = "screen" args = "--perspective-file $(find bobi_vision)/perspectives/main.perspective"/>
+        <node name = "rqt_dashboard" pkg = "rqt_gui" type = "rqt_gui" respawn = "false" output = "screen" args = "--perspective-file $(find bobi_vision)/perspectives/Toulouse.perspective"/>
     </group>
 
 </launch>

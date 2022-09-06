@@ -11,7 +11,7 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "trajectory_identification_node");
     std::shared_ptr<ros::NodeHandle> nh(new ros::NodeHandle());
 
-    TrajectoryIdentification ti(nh, 15);
+    TrajectoryIdentification ti(nh, 5);
 
     ros::Publisher pose_pub = nh->advertise<bobi_msgs::PoseVec>("filtered_poses", 1);
     ros::Publisher speed_pub = nh->advertise<bobi_msgs::SpeedEstimateVec>("speed_estimates", 1);
@@ -29,7 +29,8 @@ int main(int argc, char** argv)
         if (history.size() > 1) {
             bobi_msgs::SpeedEstimateVec sev;
             auto filtered_t_1 = *std::next(history.begin());
-            for (size_t i = 0; i < filtered.size(); ++i) {
+            size_t end = std::min(filtered.size(), filtered_t_1.size());
+            for (size_t i = 0; i < end; ++i) {
                 double dt = filtered[i].header.stamp.toSec() - filtered_t_1[i].header.stamp.toSec();
                 dt = std::max(dt, 1. / rate);
                 double speed = std::sqrt(std::pow(filtered[i].pose.xyz.x - filtered_t_1[i].pose.xyz.x, 2) + std::pow(filtered[i].pose.xyz.y - filtered_t_1[i].pose.xyz.y, 2)) / dt;
