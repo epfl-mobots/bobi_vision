@@ -8,8 +8,8 @@
 
 #define INVALID -1000
 #define BL 3.5
-#define MAX_DIST_PER_TS 0.13
-#define MIN_DIST_PER_DUPL 0.01
+#define MAX_DIST_PER_TS 0.01
+#define MIN_DIST_PER_DUPL 0.003
 
 namespace bobi {
     class FilteringMethodBase {
@@ -49,47 +49,41 @@ namespace bobi {
                 std::copy(t0->begin(), t0->end(), copy.begin());
             }
 
-            for (size_t i = 0; i < r0->size(); ++i) {
-                float min_dist = std::numeric_limits<float>::infinity();
-                int min_idx = INVALID;
+            for (size_t i = 0; i < num_robots; ++i) {
 
                 if (_force_robot_position) {
                     copy.insert(copy.begin() + i, (*r0)[i]);
                 }
-                else {
-                    for (size_t j = 0; j < copy.size(); ++j) {
-                        float tolerance = MAX_DIST_PER_TS;
-                        float dist = euc_distance((*r0)[i], copy[j]);
-                        float angle = angle_sim((*r0)[i], copy[j]);
-                        if ((dist < min_dist) && (dist <= tolerance)) {
-                            min_dist = dist;
-                            min_idx = j;
-                        }
-                    }
 
-                    if (min_idx != INVALID) {
-                        if (i >= t0->size()) {
-                            copy.insert(copy.begin() + i, (*r0)[i]);
-                        }
-                        else {
-                            // make sure robots are always at the beginning of the list ! this is important
-                            double yaw = std::abs((*r0)[i].pose.rpy.yaw - (*t0)[min_idx].pose.rpy.yaw);
-                            if (yaw > M_PI) {
-                                copy[i] = (*r0)[i];
-                                // copy.insert(copy.begin() + i, (*r0)[i]);
-                            }
-                            else {
-                                copy[i] = (*t0)[min_idx];
-                                copy[i].pose.rpy.yaw = (*r0)[i].pose.rpy.yaw; // the yaw info from the robot tracker is more accurate
-                            }
-                        }
-                        if (i != min_idx) {
-                            // copy.erase(copy.begin() + min_idx);
-                        }
+                float min_dist = std::numeric_limits<float>::infinity();
+                int min_idx = INVALID;
+
+                for (size_t j = 0; j < t0->size(); ++j) {
+                    float tolerance = MAX_DIST_PER_TS;
+                    float dist = euc_distance((*r0)[i], (*t0)[j]);
+                    float angle = angle_sim((*r0)[i], (*t0)[j]);
+                    if ((dist < min_dist) && (dist < tolerance)) {
+                        min_dist = dist;
+                        min_idx = j;
+                    }
+                }
+
+                if (min_idx != INVALID) {
+                    // make sure robots are always at the beginning of the list ! this is important
+                    double yaw = std::abs((*r0)[i].pose.rpy.yaw - copy[min_idx].pose.rpy.yaw);
+                    if (yaw > M_PI) {
+                        copy[i] = (*r0)[i];
+                        // copy.insert(copy.begin() + i, (*r0)[i]);
                     }
                     else {
-                        copy.insert(copy.begin() + i, (*r0)[i]);
+                        auto tmp = (*t0)[i];
+                        copy[i] = (*t0)[min_idx];
+                        copy[min_idx] = tmp;
+                        copy[i].pose.rpy.yaw = (*r0)[i].pose.rpy.yaw; // the yaw info from the robot tracker is more accurate
                     }
+                }
+                else {
+                    copy.insert(copy.begin() + i, (*r0)[i]);
                 }
             }
 
@@ -180,7 +174,7 @@ namespace bobi {
         }
 
         bool _force_robot_position;
-        bool _min_history_len;
+        int _min_history_len;
     }; // namespace bobi
 } // namespace bobi
 

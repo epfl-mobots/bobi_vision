@@ -16,7 +16,8 @@ namespace bobi {
 
     class TrajectoryIdentification {
 
-        using AgentPoseList = std::list<std::vector<bobi_msgs::PoseStamped>>;
+        using AgentPose = std::vector<bobi_msgs::PoseStamped>;
+        using AgentPoseList = std::list<AgentPose>;
 
     public:
         TrajectoryIdentification(std::shared_ptr<ros::NodeHandle> nh, size_t matrix_len = 5)
@@ -29,7 +30,7 @@ namespace bobi {
             f = boost::bind(&TrajectoryIdentification::_config_cb, this, _1, _2);
             _config_server.setCallback(f);
 
-            std::tie(_basic_tracker, std::ignore) = _method_factory(_nh, 0, true);
+            std::tie(_basic_tracker, std::ignore) = _method_factory(_nh, 0, _force_robot_position);
 
             // Pose subscribers
             _naive_poses_sub = _nh->subscribe("naive_poses", 1, &TrajectoryIdentification::_naive_pose_cb, this);
@@ -37,24 +38,29 @@ namespace bobi {
             _bottom2top_srv = _nh->serviceClient<bobi_msgs::ConvertCoordinates>("convert_bottom2top");
         }
 
-        std::vector<bobi_msgs::PoseStamped> filter()
+        std::pair<AgentPose, bool> filter()
         {
             std::lock_guard<std::mutex> g1(_cfg_mutex);
             std::lock_guard<std::mutex> g2(_rb_mutex);
             std::lock_guard<std::mutex> g3(_ind_mutex);
 
-            // if (_filtered_pose_list.size() >= _filter->min_history_len()) {
-            //     _filter->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
-            // }
-            // else
-            if (_filtered_pose_list.size()) {
+            AgentPose p;
+            bool is_filtered = false;
+            if (_init_successful && _filtered_pose_list.size() >= _filter->min_history_len()) {
                 _basic_tracker->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
+                _filter->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
+                p = _filtered_pose_list.front();
+                is_filtered = true;
+            }
+            else if (_unfiltered_pose_list.size()) {
+                _basic_tracker->operator()(_unfiltered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
+                p = _unfiltered_pose_list.front();
+            }
+            else {
+                p = AgentPose();
             }
 
-            if (_filtered_pose_list.size()) {
-                return _filtered_pose_list.front();
-            }
-            return std::vector<bobi_msgs::PoseStamped>();
+            return std::make_pair(p, is_filtered);
         }
 
         AgentPoseList filtered_list()
@@ -71,33 +77,36 @@ namespace bobi {
             if (copies.size()) {
                 std::copy(pose_vec_ptr->poses.begin(), pose_vec_ptr->poses.end(), copies.begin());
             }
-            _filtered_pose_list.push_front(copies);
-
-            // if (!_init_successful) {
-            //     if (copies.size() >= _num_agents) {
-            //         _filtered_pose_list.push_front(copies);
-            //     }
-            //     else {
-            //         _filtered_pose_list.clear();
-            //     }
-
-            //     if (_filtered_pose_list.size() == _filter->min_history_len()) {
-            //         _init_successful = true;
-            //         // _filter->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
-            //     }
-            // }
-            // else {
-            //     _filtered_pose_list.push_front(copies);
-            if (_filtered_pose_list.size() > _matrix_len) {
-                _filtered_pose_list.pop_back();
+            _unfiltered_pose_list.push_front(copies);
+            if (_unfiltered_pose_list.size() > 1) {
+                _unfiltered_pose_list.pop_back();
             }
-            //     // _filter->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
-            // }
 
-            // if (_init_successful && (_filtered_pose_list.size() < _filter->min_history_len())) {
-            //     _init_successful = false;
-            //     _filtered_pose_list.clear();
-            // }
+            if (!_init_successful) {
+                if (copies.size() == _num_agents) {
+                    _filtered_pose_list.push_front(copies);
+                }
+                else {
+                    _filtered_pose_list.clear();
+                }
+
+                if (_filtered_pose_list.size() == _filter->min_history_len()) {
+                    _init_successful = true;
+                    // _filter->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
+                }
+            }
+            else {
+                _filtered_pose_list.push_front(copies);
+                if (_filtered_pose_list.size() > _matrix_len) {
+                    _filtered_pose_list.pop_back();
+                }
+                // _filter->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
+            }
+
+            if (_init_successful && (_filtered_pose_list.size() < _filter->min_history_len())) {
+                _init_successful = false;
+                _filtered_pose_list.clear();
+            }
         }
 
         void _robot_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
@@ -108,6 +117,7 @@ namespace bobi {
             if (copies.size()) {
                 std::copy(pose_vec_ptr->poses.begin(), pose_vec_ptr->poses.end(), copies.begin());
             }
+
             for (size_t i = 0; i < copies.size(); ++i) {
                 geometry_msgs::Point converted_p;
                 copies[i].pose.xyz = _convert_bottom2top(copies[i].pose.xyz);
@@ -160,6 +170,7 @@ namespace bobi {
         std::shared_ptr<FilteringMethodBase> _basic_tracker;
         size_t _matrix_len;
         AgentPoseList _filtered_pose_list;
+        AgentPoseList _unfiltered_pose_list;
         AgentPoseList _filtered_robot_pose_list;
 
         std::shared_ptr<ros::NodeHandle> _nh;

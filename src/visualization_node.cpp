@@ -77,7 +77,7 @@ protected:
             cv::Mat frame = cv_bridge::toCvShare(msg, "mono8")->image;
             cv::cvtColor(frame, frame, cv::COLOR_GRAY2BGR);
 
-            _fi.draw_all(frame, _individual_poses, _robot_poses, _target_position, bobi::CameraLocation::TOP);
+            _fi.draw_all(frame, _individual_poses, _robot_poses, _target_position, _ipose_filtered, _rpose_filtered, bobi::CameraLocation::TOP);
 
             sensor_msgs::ImagePtr image_ptr = cv_bridge::CvImage(header, "bgr8", frame).toImageMsg();
             _individual_annot_image_pub.publish(image_ptr);
@@ -95,7 +95,7 @@ protected:
         try {
             cv::Mat frame = cv_bridge::toCvShare(msg, "bgr8")->image;
 
-            _fi.draw_all(frame, _individual_poses, _robot_poses, _target_position, bobi::CameraLocation::BOTTOM);
+            _fi.draw_all(frame, _individual_poses, _robot_poses, _target_position, _ipose_filtered, _rpose_filtered, bobi::CameraLocation::BOTTOM);
 
             sensor_msgs::ImagePtr image_ptr = cv_bridge::CvImage(header, "bgr8", frame).toImageMsg();
             _robot_annot_image_pub.publish(image_ptr);
@@ -108,11 +108,13 @@ protected:
     void _filtered_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
     {
         _individual_poses = pose_vec_ptr->poses;
+        _ipose_filtered = pose_vec_ptr->is_filtered;
     }
 
     void _robot_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
     {
         _robot_poses = pose_vec_ptr->poses;
+        _rpose_filtered = pose_vec_ptr->is_filtered;
     }
 
     void _target_pos_cb(const bobi_msgs::PoseStamped::ConstPtr& pos_ptr)
@@ -125,6 +127,8 @@ protected:
 
     std::vector<bobi_msgs::PoseStamped> _individual_poses;
     std::vector<bobi_msgs::PoseStamped> _robot_poses;
+    bool _ipose_filtered;
+    bool _rpose_filtered;
 
     bobi_msgs::PoseStamped _target_position; // TODO: this assumes a single robot and should be fixed in future versions
 

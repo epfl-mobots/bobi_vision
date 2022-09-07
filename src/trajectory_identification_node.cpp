@@ -19,21 +19,24 @@ int main(int argc, char** argv)
     int rate = 30;
     ros::Rate loop_rate(rate);
     while (ros::ok()) {
-        std::vector<bobi_msgs::PoseStamped> filtered = ti.filter();
+        bool was_filtered;
+        std::vector<bobi_msgs::PoseStamped> poses;
+        std::tie(poses, was_filtered) = ti.filter();
 
         bobi_msgs::PoseVec pv;
-        pv.poses = filtered;
+        pv.poses = poses;
+        pv.is_filtered = was_filtered;
         pose_pub.publish(pv);
 
         auto history = ti.filtered_list();
         if (history.size() > 1) {
             bobi_msgs::SpeedEstimateVec sev;
-            auto filtered_t_1 = *std::next(history.begin());
-            size_t end = std::min(filtered.size(), filtered_t_1.size());
+            auto poses_t_1 = *std::next(history.begin());
+            size_t end = std::min(poses.size(), poses_t_1.size());
             for (size_t i = 0; i < end; ++i) {
-                double dt = filtered[i].header.stamp.toSec() - filtered_t_1[i].header.stamp.toSec();
+                double dt = poses[i].header.stamp.toSec() - poses_t_1[i].header.stamp.toSec();
                 dt = std::max(dt, 1. / rate);
-                double speed = std::sqrt(std::pow(filtered[i].pose.xyz.x - filtered_t_1[i].pose.xyz.x, 2) + std::pow(filtered[i].pose.xyz.y - filtered_t_1[i].pose.xyz.y, 2)) / dt;
+                double speed = std::sqrt(std::pow(poses[i].pose.xyz.x - poses_t_1[i].pose.xyz.x, 2) + std::pow(poses[i].pose.xyz.y - poses_t_1[i].pose.xyz.y, 2)) / dt;
                 sev.speeds.push_back(speed);
             }
             speed_pub.publish(sev);

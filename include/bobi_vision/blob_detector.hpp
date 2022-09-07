@@ -64,7 +64,7 @@ namespace bobi {
                 return std::vector<cv::Point3f>();
             }
 
-            _background_stor.get()->apply(_gray_frame, _foreground_frame, 0.001);
+            _background_stor.get()->apply(_gray_frame, _foreground_frame, 0.0005);
             _remove_contours(_foreground_frame);
             _blob_frame = _foreground_frame.clone();
 
@@ -74,10 +74,11 @@ namespace bobi {
                 cv::erode(_blob_frame, _blob_frame, element, cv::Point(-1, -1), 1);
                 cv::morphologyEx(_blob_frame, _blob_frame, cv::MORPH_CLOSE, element, cv::Point(-1, -1), 1);
             }
-            {
-                cv::Mat element = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2, 2), cv::Point(-1, -1));
-                cv::dilate(_blob_frame, _blob_frame, element, cv::Point(-1, -1), 2);
-            }
+            // {
+            // cv::Mat element = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2, 2), cv::Point(-1, -1));
+            // cv::dilate(_blob_frame, _blob_frame, element, cv::Point(-1, -1), 2);
+            // cv::imshow("dilate", _blob_frame);
+            // }
 
             std::vector<cv::Point2f> corners;
             std::vector<cv::Point2f> centers;

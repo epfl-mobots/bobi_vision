@@ -95,42 +95,39 @@ namespace bobi {
                     float min_dist = std::numeric_limits<float>::infinity();
                     int min_idx = INVALID;
 
-                    if (_force_robot_position) {
-                        copy.insert(copy.begin() + i, (*r0)[i]);
-                    }
-                    else {
-                        for (size_t j = 0; j < t0->size(); ++j) {
-                            float tolerance = MAX_DIST_PER_TS;
-                            float dist = euc_distance((*r0)[i], (*t0)[j]);
-                            float angle = angle_sim((*r0)[i], (*t0)[j]);
-                            if ((dist < min_dist) && (dist <= tolerance)) {
-                                min_dist = dist;
-                                min_idx = j;
-                            }
+                    for (size_t j = 0; j < t0->size(); ++j) {
+                        float tolerance = MAX_DIST_PER_TS;
+                        float dist = euc_distance((*r0)[i], (*t0)[j]);
+                        float angle = angle_sim((*r0)[i], (*t0)[j]);
+                        if ((dist < min_dist) && (dist <= tolerance)) {
+                            min_dist = dist;
+                            min_idx = j;
                         }
+                    }
 
-                        if (min_idx != INVALID) {
-                            if (i >= t0->size()) {
-                                copy.insert(copy.begin() + i, (*r0)[i]);
-                            }
-                            else {
-                                // make sure robots are always at the beginning of the list ! this is important
-                                double yaw = std::abs((*r0)[i].pose.rpy.yaw - (*t0)[min_idx].pose.rpy.yaw);
-                                if (yaw > M_PI) {
-                                    // copy[i] = (*r0)[i];
-                                    copy.insert(copy.begin() + i, (*r0)[i]);
-                                }
-                                else {
-                                    copy[i] = (*t0)[min_idx];
-                                    copy[i].pose.rpy.yaw = (*r0)[i].pose.rpy.yaw; // the yaw info from the robot tracker is more accurate
-                                }
-                            }
-
-                            _missing_robot_count[i] = 0;
+                    if (min_idx != INVALID) {
+                        if (i >= t0->size()) {
+                            copy.insert(copy.begin() + i, (*r0)[i]);
                         }
                         else {
-                            missing_robot_idcs.push_back(i);
+                            // make sure robots are always at the beginning of the list ! this is important
+                            double yaw = std::abs((*r0)[i].pose.rpy.yaw - (*t0)[min_idx].pose.rpy.yaw);
+                            if (yaw > M_PI) {
+                                copy[i] = (*r0)[i];
+                                // copy.insert(copy.begin() + i, (*r0)[i]);
+                            }
+                            else {
+                                auto tmp = (*t0)[i];
+                                copy[i] = (*t0)[min_idx];
+                                copy[min_idx] = tmp;
+                                copy[i].pose.rpy.yaw = (*r0)[i].pose.rpy.yaw; //
+                            }
                         }
+
+                        _missing_robot_count[i] = 0;
+                    }
+                    else {
+                        missing_robot_idcs.push_back(i);
                     }
 
                     if (missing_robot_idcs.size()) {
@@ -156,24 +153,19 @@ namespace bobi {
             AgentPoseList copy(individual_poses.size());
             std::copy(individual_poses.begin(), individual_poses.end(), copy.begin());
 
-            ROS_WARN("1");
             _fill_missing_agents(copy, individual_poses, num_agents);
 
             // check for nearest centroids and match with past trajectories
             // first pass of assigning ids. Here, missing ids are left for post-inference
-            ROS_WARN("2");
             _rearrange_to_nearest_centroid(copy, individual_poses, num_agents, start_idx, num_agents);
-            ROS_WARN("re size %ld %ld", copy.size(), (*individual_poses.begin()).size());
 
             // second pass of assigning ids. Attempt to see if t-1 is close to any other fish from t (perhaps the 2 are too close)
             // _check_overlapping(individual_poses, num_agents, start_idx, num_agents);
 
             // find missing fish and attempt to estimate/handle the missing position
-            ROS_WARN("3");
 
             _infer_missing(copy, individual_poses, robot_poses, num_agents, num_robots, start_idx, num_agents);
 
-            ROS_WARN("4");
             auto ct0 = copy.begin();
             for (size_t i = 0; i < (*ct0).size(); ++i) {
                 bobi_msgs::PoseStamped pi = (*ct0)[i];
@@ -182,7 +174,6 @@ namespace bobi {
                 }
             }
 
-            ROS_WARN("5");
             auto t0 = individual_poses.begin();
             (*t0).resize(ct0->size());
             std::copy((*ct0).begin(), (*ct0).end(), (*t0).begin());
@@ -195,12 +186,7 @@ namespace bobi {
             auto ct0 = copy.begin();
 
             int missing_ind = n - (int)t0->size();
-            if (missing_ind < 0) {
-                (*ct0).resize(n);
-                ROS_ERROR("ok");
-                return;
-            }
-            else if (missing_ind == 0) {
+            if (missing_ind <= 0) {
                 return;
             }
 
@@ -229,16 +215,13 @@ namespace bobi {
             _angle_sims.resize(num_agents, std::numeric_limits<float>::infinity());
             _original_idcs.resize(num_agents, INVALID);
 
-            ROS_WARN("g");
-            ROS_WARN("g %ld %ld ", (*ct0).size(), (*t0).size());
-
             for (size_t i = sidx; i < (*ct0).size(); ++i) {
                 float min_dist = std::numeric_limits<float>::infinity();
                 int min_idx = INVALID;
-                ROS_WARN("h");
 
                 for (size_t j = sidx; j < (*t1).size(); ++j) {
                     float tolerance = MAX_DIST_PER_TS * (_missing_count[j] + 1);
+
                     float dist = euc_distance((*ct0)[i], (*t1)[j]);
                     float angle = angle_sim((*ct0)[i], (*t1)[j]);
                     if ((dist < min_dist) && (dist <= tolerance)) {
@@ -260,33 +243,23 @@ namespace bobi {
                     if (!taken) {
                         (*ct0)[min_idx] = (*ct0)[i];
                         _original_idcs[i] = min_idx;
-                        ROS_ERROR("I set %d", min_idx);
                         _missing_count[min_idx] = 0;
                         taken_idcs.push_back(min_idx);
                     }
                 }
             }
 
-            ROS_WARN("i");
-
             for (size_t i = 0; i < _original_idcs.size(); ++i) {
                 bobi_msgs::PoseStamped pi = (*ct0)[i];
-                ROS_WARN("c");
                 for (size_t j = 0; j < _original_idcs.size(); ++j) {
                     bobi_msgs::PoseStamped pj = (*ct0)[j];
-                    ROS_WARN("d");
 
                     if (i != j && pi.pose.xyz.x == pj.pose.xyz.x && pi.pose.xyz.y == pj.pose.xyz.y && pi.pose.rpy.yaw == pj.pose.rpy.yaw) {
                         int midx = i;
-                        ROS_WARN("e");
-
                         if (_angle_sims[j] < _angle_sims[i]) {
                             midx = j;
                         }
-                        ROS_WARN("f");
 
-                        ROS_ERROR("%ld", _original_idcs.size());
-                        ROS_ERROR("idx %ld", _original_idcs[midx]);
                         (*ct0)[midx] = (*ct0)[_original_idcs[midx]];
                         // if (midx < t0->size()) {
                         //     (*ct0)[midx] = (*t0)[midx];
@@ -357,7 +330,7 @@ namespace bobi {
                         bobi_msgs::PoseStamped p;
                         p.pose.xyz.x = ((*t1)[i].pose.xyz.x - (*t2)[i].pose.xyz.x) + (*t1)[i].pose.xyz.x;
                         p.pose.xyz.y = ((*t1)[i].pose.xyz.y - (*t2)[i].pose.xyz.y) + (*t1)[i].pose.xyz.y;
-                        // p.pose.rpy.yaw = _angle_to_pipi(_angle_to_pipi((*t1)[i].pose.rpy.yaw - (*t2)[i].pose.rpy.yaw) + (*t1)[i].pose.rpy.yaw);
+                        p.pose.rpy.yaw = _angle_to_pipi(_angle_to_pipi((*t1)[i].pose.rpy.yaw - (*t2)[i].pose.rpy.yaw) + (*t1)[i].pose.rpy.yaw);
                         p.header.stamp = ros::Time::now();
 
                         (*ct0)[i] = p;

@@ -46,11 +46,13 @@ namespace bobi {
             std::vector<bobi_msgs::PoseStamped> individual_poses,
             std::vector<bobi_msgs::PoseStamped> robot_poses,
             bobi_msgs::PoseStamped target_position,
+            bool ifiltered,
+            bool rfiltered,
             CameraLocation camera_loc = CameraLocation::NA)
         {
             draw_fps(frame);
-            draw_poses(frame, individual_poses, camera_loc);
-            draw_robot_poses(frame, robot_poses, camera_loc);
+            draw_poses(frame, individual_poses, camera_loc, ifiltered, rfiltered);
+            draw_robot_poses(frame, robot_poses, camera_loc, ifiltered, rfiltered);
             draw_center(frame, camera_loc);
             draw_mask(frame, camera_loc);
             draw_target(frame, target_position, camera_loc);
@@ -100,7 +102,7 @@ namespace bobi {
             _prev_time = now;
         }
 
-        void draw_poses(cv::Mat& frame, std::vector<bobi_msgs::PoseStamped> poses, const CameraLocation camera_loc)
+        void draw_poses(cv::Mat& frame, std::vector<bobi_msgs::PoseStamped> poses, const CameraLocation camera_loc, bool ifiltered, bool rfiltered)
         {
             if (poses.size() > 0) {
                 double cur_fps = 1. / ros::Duration(poses[0].header.stamp - _prev_top_header.stamp).toSec();
@@ -124,6 +126,29 @@ namespace bobi {
                 else {
                     pose.pose.xyz.x /= _top_pix2m;
                     pose.pose.xyz.y /= _top_pix2m;
+
+                    {
+                        std::stringstream stream;
+                        stream << std::fixed << std::setprecision(1) << _top_fps;
+
+                        std::string msg;
+                        cv::Scalar colour;
+                        if (ifiltered) {
+                            msg = "Filtering: ACTIVE";
+                            colour = CV_RGB(0, 200, 0);
+                        }
+                        else {
+                            msg = "Filtering: INACTIVE";
+                            colour = CV_RGB(200, 0, 0);
+                        }
+                        cv::putText(frame,
+                            msg,
+                            cv::Point(frame.size().width * 0.03, frame.size().height * 0.97),
+                            cv::FONT_HERSHEY_DUPLEX,
+                            0.5,
+                            colour,
+                            2);
+                    }
                 }
 
                 float offset = 13.;
@@ -145,7 +170,7 @@ namespace bobi {
             }
         }
 
-        void draw_robot_poses(cv::Mat& frame, std::vector<bobi_msgs::PoseStamped> poses, const CameraLocation camera_loc)
+        void draw_robot_poses(cv::Mat& frame, std::vector<bobi_msgs::PoseStamped> poses, const CameraLocation camera_loc, bool ifiltered, bool rfiltered)
         {
             if (poses.size() > 0) {
                 double cur_fps = 1. / ros::Duration(poses[0].header.stamp - _prev_bottom_header.stamp).toSec();
@@ -319,7 +344,6 @@ namespace bobi {
         void _config_cb(bobi_vision::BlobDetectorConfig& config, uint32_t level)
         {
             _num_agents = config.num_agents;
-            _num_robots = config.num_robots;
 
             std::lock_guard<std::mutex> guard(_cfg_mutex);
 
@@ -377,7 +401,6 @@ namespace bobi {
 
         ros::Time _prev_time;
         size_t _num_agents;
-        size_t _num_robots;
 
         std::vector<cv::Scalar> _colours;
         std::mutex _cfg_mutex;
