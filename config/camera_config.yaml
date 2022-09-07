@@ -1,12 +1,12 @@
 top_camera:
-  using_file: True
+  using_file: False
   camera_dev_no: 2
   # camera_dev_no: "/home/vpapaspy/Desktop/idTracker_test.mp4"
   # camera_dev_no: "/home/vpapaspy/Desktop/test.mp4"
   # camera_dev_no: /home/vpapaspy/Desktop/5fish_exps/exp1_lq.mp4
   # camera_dev_no: /home/vpapaspy/Desktop/2fish_exps/exp2_lq.mp4
   # camera_dev_no: /home/vpapaspy/Desktop/abc01.mp4
-  camera_dev_no: /home/vpapaspy/Desktop/experiments-25.mp4
+  # camera_dev_no: /home/vpapaspy/Desktop/experiments-25.mp4
   camera_px_width: 512
   camera_px_height: 512
   camera_px_width_undistorted: 507
