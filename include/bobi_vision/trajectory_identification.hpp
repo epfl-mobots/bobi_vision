@@ -141,8 +141,10 @@ namespace bobi {
             std::tie(_filter, success) = _method_factory(_nh, config.method, _force_robot_position);
             if (success) {
                 ROS_INFO("Trajectory Identification method changed");
+                _unfiltered_pose_list.clear();
                 _filtered_pose_list.clear();
                 _filtered_robot_pose_list.clear();
+                _init_successful = false;
             }
             else {
                 ROS_INFO("Using default Trajectory Identification method");
