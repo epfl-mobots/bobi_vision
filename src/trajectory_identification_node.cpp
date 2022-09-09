@@ -29,8 +29,8 @@ int main(int argc, char** argv)
         pose_pub.publish(pv);
 
         auto history = ti.filtered_list();
+        bobi_msgs::SpeedEstimateVec sev;
         if (history.size() > 1) {
-            bobi_msgs::SpeedEstimateVec sev;
             auto poses_t_1 = *std::next(history.begin());
             size_t end = std::min(poses.size(), poses_t_1.size());
             for (size_t i = 0; i < end; ++i) {
@@ -39,8 +39,8 @@ int main(int argc, char** argv)
                 double speed = std::sqrt(std::pow(poses[i].pose.xyz.x - poses_t_1[i].pose.xyz.x, 2) + std::pow(poses[i].pose.xyz.y - poses_t_1[i].pose.xyz.y, 2)) / dt;
                 sev.speeds.push_back(speed);
             }
-            speed_pub.publish(sev);
         }
+        speed_pub.publish(sev);
 
         ros::spinOnce();
         loop_rate.sleep();
