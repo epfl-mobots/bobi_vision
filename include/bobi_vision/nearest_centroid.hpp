@@ -60,6 +60,7 @@ namespace bobi {
                         bobi_msgs::PoseStamped p1 = (*r1)[i];
                         (*r0)[i] = p1;
                         (*r0)[i].header.stamp = ros::Time::now();
+                        (*r0)[i].pose.is_filtered = true;
                     }
                     else if (robot_poses.size() > 2) {
                         auto r1 = std::next(robot_poses.begin());
@@ -70,6 +71,7 @@ namespace bobi {
                         p.pose.xyz.y = ((*r1)[i].pose.xyz.y - (*r2)[i].pose.xyz.y) * 1.05 + (*r1)[i].pose.xyz.y;
                         p.pose.rpy.yaw = _angle_to_pipi(_angle_to_pipi((*r1)[i].pose.rpy.yaw - (*r2)[i].pose.rpy.yaw) * 1.05 + (*r1)[i].pose.rpy.yaw);
                         p.header.stamp = ros::Time::now();
+                        p.pose.is_filtered = true;
 
                         (*r0)[i] = p;
                     }
@@ -108,19 +110,24 @@ namespace bobi {
                     if (min_idx != INVALID) {
                         if (i >= t0->size()) {
                             copy.insert(copy.begin() + i, (*r0)[i]);
+                            copy[i].pose.is_filtered = true;
                         }
                         else {
                             // make sure robots are always at the beginning of the list ! this is important
                             double yaw = std::abs((*r0)[i].pose.rpy.yaw - (*t0)[min_idx].pose.rpy.yaw);
                             if (yaw > M_PI) {
                                 copy[i] = (*r0)[i];
+                                copy[i].pose.is_filtered = true;
                                 // copy.insert(copy.begin() + i, (*r0)[i]);
                             }
                             else {
                                 auto tmp = (*t0)[i];
                                 copy[i] = (*t0)[min_idx];
                                 copy[min_idx] = tmp;
-                                copy[i].pose.rpy.yaw = (*r0)[i].pose.rpy.yaw; //
+                                copy[min_idx].pose.is_swapped = true;
+                                copy[i].pose.is_swapped = true;
+
+                                // copy[i].pose.rpy.yaw = (*r0)[i].pose.rpy.yaw;
                             }
                         }
 
@@ -135,11 +142,13 @@ namespace bobi {
                         for (int idx : missing_robot_idcs) {
                             if (_missing_robot_count[idx] < individual_poses.size() - 2 || i < t0->size()) {
                                 copy[idx] = (*r0)[idx];
+                                copy[idx].pose.is_filtered = true;
                             }
                             else {
                                 auto t = std::next(individual_poses.begin(), _missing_robot_count[idx]);
                                 copy[idx] = (*t)[idx]; // revert to last valid position to (hopefully) force the behavioural model to recover the lure on its own !! this is not guaranteed
                                 copy[idx].header.stamp = ros::Time::now();
+                                copy[idx].pose.is_filtered = true;
                             }
                         }
                     }
@@ -242,6 +251,9 @@ namespace bobi {
 
                     if (!taken) {
                         (*ct0)[min_idx] = (*ct0)[i];
+                        if (i != min_idx) {
+                            (*ct0)[min_idx].pose.is_swapped = true;
+                        }
                         _original_idcs[i] = min_idx;
                         _missing_count[min_idx] = 0;
                         taken_idcs.push_back(min_idx);
@@ -261,6 +273,9 @@ namespace bobi {
                         }
 
                         (*ct0)[midx] = (*ct0)[_original_idcs[midx]];
+                        if (i != midx) {
+                            (*ct0)[midx].pose.is_swapped = true;
+                        }
                         // if (midx < t0->size()) {
                         //     (*ct0)[midx] = (*t0)[midx];
                         // }
@@ -307,6 +322,9 @@ namespace bobi {
                     }
                     if (min_idx != INVALID) {
                         copy[i] = (*t0)[min_idx];
+                        if (i != min_idx) {
+                            copy[i].pose.is_swapped = true;
+                        }
                     }
                 }
             }
@@ -332,6 +350,7 @@ namespace bobi {
                         p.pose.xyz.y = ((*t1)[i].pose.xyz.y - (*t2)[i].pose.xyz.y) + (*t1)[i].pose.xyz.y;
                         p.pose.rpy.yaw = _angle_to_pipi(_angle_to_pipi((*t1)[i].pose.rpy.yaw - (*t2)[i].pose.rpy.yaw) + (*t1)[i].pose.rpy.yaw);
                         p.header.stamp = ros::Time::now();
+                        p.pose.is_filtered = true;
 
                         (*ct0)[i] = p;
                     }
@@ -341,6 +360,7 @@ namespace bobi {
                         }
                         else {
                             (*ct0)[i] = (*t1)[i];
+                            (*ct0)[i].pose.is_filtered = true;
                         }
                         (*ct0)[i].header.stamp = ros::Time::now();
                     }

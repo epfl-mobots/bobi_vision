@@ -53,6 +53,7 @@ namespace bobi {
 
                 if (_force_robot_position) {
                     copy.insert(copy.begin() + i, (*r0)[i]);
+                    copy[i].pose.is_filtered = true;
                 }
 
                 float min_dist = std::numeric_limits<float>::infinity();
@@ -73,17 +74,21 @@ namespace bobi {
                     double yaw = std::abs((*r0)[i].pose.rpy.yaw - copy[min_idx].pose.rpy.yaw);
                     if (yaw > M_PI) {
                         copy[i] = (*r0)[i];
+                        copy[i].pose.is_filtered = true;
                         // copy.insert(copy.begin() + i, (*r0)[i]);
                     }
                     else {
                         auto tmp = (*t0)[i];
                         copy[i] = (*t0)[min_idx];
                         copy[min_idx] = tmp;
-                        copy[i].pose.rpy.yaw = (*r0)[i].pose.rpy.yaw; // the yaw info from the robot tracker is more accurate
+                        copy[min_idx].pose.is_swapped = true;
+                        copy[i].pose.is_swapped = true;
+                        // copy[i].pose.rpy.yaw = (*r0)[i].pose.rpy.yaw; // the yaw info from the robot tracker is more accurate
                     }
                 }
                 else {
                     copy.insert(copy.begin() + i, (*r0)[i]);
+                    copy[i].pose.is_filtered = true;
                 }
             }
 
