@@ -40,6 +40,8 @@ namespace bobi {
             _config_server.setCallback(f);
 
             _target_position = _nh->advertise<bobi_msgs::PoseStamped>("target_position", 1);
+
+            _start_time = ros::Time::now().toSec();
         }
 
         void draw_all(
@@ -57,6 +59,7 @@ namespace bobi {
             draw_center(frame, camera_loc);
             draw_mask(frame, camera_loc);
             draw_target(frame, target_position, camera_loc);
+            draw_uptime(frame);
         }
 
         void draw_fps(cv::Mat& frame)
@@ -315,6 +318,28 @@ namespace bobi {
             }
         }
 
+        void draw_uptime(cv::Mat& frame)
+        {
+            double now = ros::Time::now().toSec();
+            unsigned long int dt = (now - _start_time);
+            int h = dt / 360;
+            dt -= h * 360;
+            int min = dt / 60;
+            dt -= min * 60;
+
+            {
+                std::stringstream stream;
+                stream << std::fixed << std::setfill('0') << std::setw(2) << h << ":" << std::setw(2) << min << ":" << std::setw(2) << dt;
+                cv::putText(frame,
+                    "Uptime: " + stream.str(),
+                    cv::Point(frame.size().width * 0.7, frame.size().height * 0.05),
+                    cv::FONT_HERSHEY_DUPLEX,
+                    0.5,
+                    CV_RGB(200, 200, 0),
+                    2);
+            }
+        }
+
         void set_top_pix2m(double coeff)
         {
             _top_pix2m = coeff;
@@ -467,6 +492,7 @@ namespace bobi {
 
         double _top_pix2m;
         double _bottom_pix2m;
+        unsigned long int _start_time;
 
         bobi::MaskPtr _top_mask;
         bobi::MaskPtr _bottom_mask;
