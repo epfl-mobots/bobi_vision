@@ -151,22 +151,28 @@ namespace bobi {
                     }
                 }
 
-                float offset = 13.;
-                float base_coef = 4.;
-                cv::Point p1(pose.pose.xyz.x + 2 * offset * std::cos(pose.pose.rpy.yaw), pose.pose.xyz.y + 2 * offset * std::sin(pose.pose.rpy.yaw));
-                cv::Point p2(pose.pose.xyz.x - 1.5 * offset * std::cos(pose.pose.rpy.yaw + M_PI / base_coef), pose.pose.xyz.y - 1.5 * offset * std::sin(pose.pose.rpy.yaw + M_PI / base_coef));
-                cv::Point p3(pose.pose.xyz.x - 1.5 * offset * std::cos(pose.pose.rpy.yaw - M_PI / base_coef), pose.pose.xyz.y - 1.5 * offset * std::sin(pose.pose.rpy.yaw - M_PI / base_coef));
+                float r = 30.;
+                cv::Point com(pose.pose.xyz.x, pose.pose.xyz.y);
+                cv::Point hdg(pose.pose.xyz.x + r * std::cos(pose.pose.rpy.yaw), pose.pose.xyz.y + r * std::sin(pose.pose.rpy.yaw));
 
-                const cv::Point points[] = {p1, p2, p3};
+                // float offset = 13.;
+                // float base_coef = 4.;
+                // cv::Point p1(pose.pose.xyz.x + 2 * offset * std::cos(pose.pose.rpy.yaw), pose.pose.xyz.y + 2 * offset * std::sin(pose.pose.rpy.yaw));
+                // cv::Point p2(pose.pose.xyz.x - 1.5 * offset * std::cos(pose.pose.rpy.yaw + M_PI / base_coef), pose.pose.xyz.y - 1.5 * offset * std::sin(pose.pose.rpy.yaw + M_PI / base_coef));
+                // cv::Point p3(pose.pose.xyz.x - 1.5 * offset * std::cos(pose.pose.rpy.yaw - M_PI / base_coef), pose.pose.xyz.y - 1.5 * offset * std::sin(pose.pose.rpy.yaw - M_PI / base_coef));
+
+                // const cv::Point points[] = {p1, p2, p3};
 
                 // cv::circle(frame, p1, 2, cv::Scalar(0, 0, 255));
                 // cv::circle(frame, p2, 2, cv::Scalar(0, 255, 0));
                 // cv::circle(frame, p3, 2, cv::Scalar(255, 0, 0));
 
                 std::lock_guard<std::mutex> guard(_cfg_mutex);
-                cv::line(frame, p1, p2, _colours[i], 2, cv::LINE_8);
-                cv::line(frame, p2, p3, _colours[i], 2, cv::LINE_8);
-                cv::line(frame, p3, p1, _colours[i], 2, cv::LINE_8);
+                // cv::line(frame, p1, p2, _colours[i], 2, cv::LINE_8);
+                // cv::line(frame, p2, p3, _colours[i], 2, cv::LINE_8);
+                // cv::line(frame, p3, p1, _colours[i], 2, cv::LINE_8);
+                cv::circle(frame, com, 5, _colours[i], 2);
+                cv::arrowedLine(frame, com, hdg, _colours[i], 2);
             }
         }
 
@@ -197,22 +203,28 @@ namespace bobi {
                     pose.pose.xyz.y /= _bottom_pix2m;
                 }
 
-                float offset = 13.;
-                float base_coef = 4.;
-                cv::Point p1(pose.pose.xyz.x + 2 * offset * std::cos(pose.pose.rpy.yaw), pose.pose.xyz.y + 2 * offset * std::sin(pose.pose.rpy.yaw));
-                cv::Point p2(pose.pose.xyz.x - 1.5 * offset * std::cos(pose.pose.rpy.yaw + M_PI / base_coef), pose.pose.xyz.y - 1.5 * offset * std::sin(pose.pose.rpy.yaw + M_PI / base_coef));
-                cv::Point p3(pose.pose.xyz.x - 1.5 * offset * std::cos(pose.pose.rpy.yaw - M_PI / base_coef), pose.pose.xyz.y - 1.5 * offset * std::sin(pose.pose.rpy.yaw - M_PI / base_coef));
+                float r = 30.;
+                cv::Point com(pose.pose.xyz.x, pose.pose.xyz.y);
+                cv::Point hdg(pose.pose.xyz.x + r * std::cos(pose.pose.rpy.yaw), pose.pose.xyz.y + r * std::sin(pose.pose.rpy.yaw));
 
-                const cv::Point points[] = {p1, p2, p3};
+                // float offset = 13.;
+                // float base_coef = 4.;
+                // cv::Point p1(pose.pose.xyz.x + 2 * offset * std::cos(pose.pose.rpy.yaw), pose.pose.xyz.y + 2 * offset * std::sin(pose.pose.rpy.yaw));
+                // cv::Point p2(pose.pose.xyz.x - 1.5 * offset * std::cos(pose.pose.rpy.yaw + M_PI / base_coef), pose.pose.xyz.y - 1.5 * offset * std::sin(pose.pose.rpy.yaw + M_PI / base_coef));
+                // cv::Point p3(pose.pose.xyz.x - 1.5 * offset * std::cos(pose.pose.rpy.yaw - M_PI / base_coef), pose.pose.xyz.y - 1.5 * offset * std::sin(pose.pose.rpy.yaw - M_PI / base_coef));
+
+                // const cv::Point points[] = {p1, p2, p3};
 
                 // cv::circle(frame, p1, 2, cv::Scalar(0, 0, 255));
                 // cv::circle(frame, p2, 2, cv::Scalar(0, 255, 0));
                 // cv::circle(frame, p3, 2, cv::Scalar(255, 0, 0));
 
                 std::lock_guard<std::mutex> guard(_cfg_mutex);
-                cv::line(frame, p1, p2, _colours[i], 2, cv::LINE_8);
-                cv::line(frame, p2, p3, _colours[i], 2, cv::LINE_8);
-                cv::line(frame, p3, p1, _colours[i], 2, cv::LINE_8);
+                // cv::line(frame, p1, p2, _colours[i], 2, cv::LINE_8);
+                // cv::line(frame, p2, p3, _colours[i], 2, cv::LINE_8);
+                // cv::line(frame, p3, p1, _colours[i], 2, cv::LINE_8);
+                cv::circle(frame, com, 5, _colours[i], 2);
+                cv::arrowedLine(frame, com, hdg, _colours[i], 2);
             }
         }
 
