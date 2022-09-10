@@ -7,6 +7,7 @@
 
 #include <bobi_msgs/PoseStamped.h>
 #include <bobi_msgs/ConvertCoordinates.h>
+#include <bobi_msgs/KickSpecs.h>
 #include <bobi_vision/BlobDetectorConfig.h>
 #include <bobi_vision/mask_factory.hpp>
 
@@ -274,6 +275,43 @@ namespace bobi {
                     }
                 }
                 break;
+            }
+        }
+
+        void draw_kick(cv::Mat& frame, bobi_msgs::KickSpecs kick, const CameraLocation camera_loc)
+        {
+            switch (camera_loc) {
+            case CameraLocation::BOTTOM: {
+                cv::Point start(kick.agent.pose.xyz.x / _bottom_pix2m, kick.agent.pose.xyz.y / _bottom_pix2m);
+                cv::Point end(kick.target_x / _bottom_pix2m, kick.target_y / _bottom_pix2m);
+                cv::drawMarker(frame, start, cv::Scalar(0, 200, 200), cv::MARKER_DIAMOND, 15, 2);
+                cv::arrowedLine(frame, start, end, cv::Scalar(0, 200, 200), 2, cv::LINE_8, 0, 0.15);
+            } break;
+
+            case CameraLocation::TOP: {
+                cv::Point start, end;
+
+                bobi_msgs::ConvertCoordinates srv;
+                srv.request.p.x = kick.agent.pose.xyz.x;
+                srv.request.p.y = kick.agent.pose.xyz.y;
+                if (_bottom2top_srv.call(srv)) {
+                    kick.agent.pose.xyz.x = srv.response.converted_p.x / _top_pix2m;
+                    kick.agent.pose.xyz.y = srv.response.converted_p.y / _top_pix2m;
+
+                    start = cv::Point(kick.agent.pose.xyz.x, kick.agent.pose.xyz.y);
+                    cv::drawMarker(frame, start, cv::Scalar(0, 200, 200), cv::MARKER_DIAMOND, 15, 2);
+                }
+
+                srv.request.p.x = kick.target_x;
+                srv.request.p.y = kick.target_y;
+                if (_bottom2top_srv.call(srv)) {
+                    kick.target_x = srv.response.converted_p.x / _top_pix2m;
+                    kick.target_y = srv.response.converted_p.y / _top_pix2m;
+                    end = cv::Point(kick.target_x, kick.target_y);
+                    cv::arrowedLine(frame, start, end, cv::Scalar(0, 200, 200), 2, cv::LINE_8, 0, 0.15);
+                }
+
+            } break;
             }
         }
 
