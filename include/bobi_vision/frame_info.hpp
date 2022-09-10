@@ -172,7 +172,7 @@ namespace bobi {
                 // cv::line(frame, p2, p3, _colours[i], 2, cv::LINE_8);
                 // cv::line(frame, p3, p1, _colours[i], 2, cv::LINE_8);
                 cv::circle(frame, com, 5, _colours[i], 2);
-                cv::arrowedLine(frame, com, hdg, _colours[i], 2);
+                cv::arrowedLine(frame, com, hdg, _colours[i], 2, 8, 0, 0.2);
             }
         }
 
@@ -224,7 +224,7 @@ namespace bobi {
                 // cv::line(frame, p2, p3, _colours[i], 2, cv::LINE_8);
                 // cv::line(frame, p3, p1, _colours[i], 2, cv::LINE_8);
                 cv::circle(frame, com, 5, _colours[i], 2);
-                cv::arrowedLine(frame, com, hdg, _colours[i], 2);
+                cv::arrowedLine(frame, com, hdg, _colours[i], 2, 8, 0, 0.2);
             }
         }
 
