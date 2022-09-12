@@ -19,7 +19,8 @@ namespace bobi {
             double var_threshold = 1;
             bool detect_shadows = false;
             float learning_rate = 0.05;
-            size_t min_contour_size = 3;
+            float relearning_rate = 0.0;
+            size_t min_contour_size = 10;
 
             // tracking features
             double quality_level = 0.04;
@@ -31,6 +32,20 @@ namespace bobi {
             // Binary threshold
             int threhold_value = 105;
             int threshold_new_value = 255;
+
+            int el_dim_x = 3;
+            int el_dim_y = 3;
+            int el_x = 1;
+            int el_y = 1;
+            int erode_x = -1;
+            int erode_y = -1;
+            int close_x = -1;
+            int close_y = -1;
+            int dilate_x = -1;
+            int dilate_y = -1;
+            int erode_iters = 1;
+            int close_iters = 1;
+            int dilate_iters = 1;
         };
     } // namespace defaults
 
@@ -46,7 +61,7 @@ namespace bobi {
             _bd_config_server.setCallback(f);
         }
 
-        std::vector<cv::Point3f> detect(cv::Mat& frame)
+        std::pair<std::vector<cv::Point3f>, std::vector<std::vector<cv::Point>>> detect(cv::Mat& frame)
         {
             if (frame.channels() == 3) {
                 cv::cvtColor(frame, _gray_frame, cv::COLOR_RGB2GRAY);
@@ -54,37 +69,33 @@ namespace bobi {
             else {
                 _gray_frame = frame.clone();
             }
-            cv::Mat og_frame = _gray_frame.clone();
 
-            cv::threshold(_gray_frame, _gray_frame, _config.threhold_value, _config.threshold_new_value, cv::THRESH_BINARY_INV);
+            cv::Mat thres_frame;
+            cv::threshold(_gray_frame, thres_frame, _config.threhold_value, _config.threshold_new_value, cv::THRESH_BINARY_INV);
 
             if (_background_counter < _config.num_background_samples) {
-                _background_stor.get()->apply(_gray_frame, _foreground_frame, _config.learning_rate);
+                _background_stor.get()->apply(thres_frame, _foreground_frame, _config.learning_rate);
                 ++_background_counter;
-                return std::vector<cv::Point3f>();
+                return std::make_pair(std::vector<cv::Point3f>(), std::vector<std::vector<cv::Point>>());
             }
 
-            _background_stor.get()->apply(_gray_frame, _foreground_frame, 0.0005);
+            _background_stor.get()->apply(thres_frame, _foreground_frame, _config.relearning_rate);
             _remove_contours(_foreground_frame);
-            _blob_frame = _foreground_frame.clone();
 
             {
                 int an = 1;
-                cv::Mat element = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(an * 2 + 1, an * 2 + 1), cv::Point(an, an));
-                cv::erode(_blob_frame, _blob_frame, element, cv::Point(-1, -1), 1);
-                cv::morphologyEx(_blob_frame, _blob_frame, cv::MORPH_CLOSE, element, cv::Point(-1, -1), 1);
+                cv::Mat element = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(_config.el_dim_x, _config.el_dim_y), cv::Point(_config.el_x, _config.el_y));
+                cv::erode(_foreground_frame, _foreground_frame, element, cv::Point(_config.erode_x, _config.erode_y), _config.erode_iters);
+                cv::morphologyEx(_foreground_frame, _foreground_frame, cv::MORPH_CLOSE, element, cv::Point(_config.close_x, _config.close_y), _config.close_iters);
+                cv::dilate(_foreground_frame, _foreground_frame, element, cv::Point(_config.dilate_x, _config.dilate_y), _config.dilate_iters);
             }
-            // {
-            // cv::Mat element = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2, 2), cv::Point(-1, -1));
-            // cv::dilate(_blob_frame, _blob_frame, element, cv::Point(-1, -1), 2);
-            // cv::imshow("dilate", _blob_frame);
-            // }
+            _blob_frame = _foreground_frame.clone();
 
             std::vector<cv::Point2f> corners;
             std::vector<cv::Point2f> centers;
             std::vector<std::vector<cv::Point2f>> corners_in_contours;
             try {
-                cv::goodFeaturesToTrack(og_frame,
+                cv::goodFeaturesToTrack(_gray_frame,
                     corners,
                     _config.num_agents,
                     _config.quality_level,
@@ -98,8 +109,9 @@ namespace bobi {
                 ROS_ERROR("OpenCV exception: %s", e.what());
             }
 
-            _find_contours(_foreground_frame, frame, corners, centers, corners_in_contours);
-            return _naive_pose2d(centers, corners_in_contours);
+            std::vector<std::vector<cv::Point>> contours;
+            _find_contours(_foreground_frame, frame, contours, corners, centers, corners_in_contours);
+            return std::make_pair(_naive_pose2d(centers, corners_in_contours), contours);
         }
 
         void reset_background_detector()
@@ -109,12 +121,7 @@ namespace bobi {
 
         cv::Mat get_blob_frame() const
         {
-            if (_blob_frame.rows != 0) {
-                return _blob_frame;
-            }
-            else {
-                return _gray_frame;
-            }
+            return _blob_frame;
         }
 
     protected:
@@ -124,6 +131,7 @@ namespace bobi {
             std::vector<cv::Vec4i> hierarchy;
             try {
                 cv::findContours(frame, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
+                // cv::findContours(frame, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE, cv::Point(0, 0));
             }
             catch (const cv::Exception& e) {
                 ROS_ERROR("OpenCV exception: %s", e.what());
@@ -143,11 +151,11 @@ namespace bobi {
 
         void _find_contours(cv::Mat& frame,
             cv::Mat& annot_frame,
+            std::vector<std::vector<cv::Point>>& contours,
             const std::vector<cv::Point2f>& corners,
             std::vector<cv::Point2f>& centers,
             std::vector<std::vector<cv::Point2f>>& corners_in_contours) const
         {
-            std::vector<std::vector<cv::Point>> contours;
             std::vector<cv::Vec4i> hierarchy;
             try {
                 cv::findContours(frame, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
@@ -159,7 +167,7 @@ namespace bobi {
             if (_annotate_frame && hierarchy.size() > 0) {
                 int idx = 0;
                 for (; idx >= 0; idx = hierarchy[idx][0]) {
-                    cv::drawContours(frame, contours, idx, cv::Scalar(0, 0, 255), cv::FILLED, 8, hierarchy);
+                    cv::drawContours(annot_frame, contours, idx, cv::Scalar(0), 1, cv::LINE_8, hierarchy);
                 }
             }
 
@@ -192,8 +200,8 @@ namespace bobi {
 
             if (_annotate_frame) {
                 for (unsigned int i = 0; i < corners_in_contours.size(); ++i) {
-                    cv::circle(annot_frame, corners_in_contours[i][0], 3, cv::Scalar(0, 0, 255), -1, 8, 0);
-                    cv::circle(annot_frame, centers[i], 3, cv::Scalar(255, 0, 0), -1, 8, 0);
+                    cv::circle(annot_frame, corners_in_contours[i][0], 3, cv::Scalar(0), -1, 8, 0);
+                    cv::circle(annot_frame, centers[i], 3, cv::Scalar(255), -1, 8, 0);
                 }
             }
         }
@@ -210,8 +218,8 @@ namespace bobi {
             std::vector<cv::Point3f> poses(centers.size());
             for (size_t i = 0; i < poses.size(); ++i) {
                 double theta = std::atan2(corners_in_contours[i][0].y - centers[i].y, corners_in_contours[i][0].x - centers[i].x);
-                // poses[i] = cv::Point3f(centers[i].x, centers[i].y, theta);
-                poses[i] = cv::Point3f(corners_in_contours[i][0].x, corners_in_contours[i][0].y, theta);
+                poses[i] = cv::Point3f(centers[i].x, centers[i].y, theta);
+                // poses[i] = cv::Point3f(corners_in_contours[i][0].x, corners_in_contours[i][0].y, theta);
             }
             return poses;
         }
@@ -232,6 +240,7 @@ namespace bobi {
             _config.var_threshold = config.var_threshold;
             _config.detect_shadows = config.detect_shadows;
             _config.learning_rate = config.learning_rate;
+            _config.relearning_rate = config.relearning_rate;
             _config.min_contour_size = config.min_contour_size;
 
             _config.quality_level = config.quality_level;
@@ -242,6 +251,20 @@ namespace bobi {
 
             _config.threshold_new_value = config.threshold_new_value;
             _config.threhold_value = config.threhold_value;
+
+            _config.el_dim_x = config.el_dim_x;
+            _config.el_dim_y = config.el_dim_y;
+            _config.el_x = config.el_x;
+            _config.el_y = config.el_y;
+            _config.erode_x = config.erode_x;
+            _config.erode_y = config.erode_y;
+            _config.close_x = config.close_x;
+            _config.close_y = config.close_y;
+            _config.dilate_x = config.dilate_x;
+            _config.dilate_y = config.dilate_y;
+            _config.erode_iters = config.erode_iters;
+            _config.close_iters = config.close_iters;
+            _config.dilate_iters = config.dilate_iters;
 
             if (config.reset_background_dtor) {
                 reset_background_detector();

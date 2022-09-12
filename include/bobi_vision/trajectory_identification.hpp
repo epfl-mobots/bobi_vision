@@ -24,7 +24,8 @@ namespace bobi {
             : _nh(nh),
               _matrix_len(matrix_len),
               _filter(new FilteringMethodBase()),
-              _init_successful(false)
+              _init_successful(false),
+              _new_info_available(false)
         {
             dynamic_reconfigure::Server<bobi_vision::TrajectoryIdentificationConfig>::CallbackType f;
             f = boost::bind(&TrajectoryIdentification::_config_cb, this, _1, _2);
@@ -38,7 +39,7 @@ namespace bobi {
             _bottom2top_srv = _nh->serviceClient<bobi_msgs::ConvertCoordinates>("convert_bottom2top");
         }
 
-        std::pair<AgentPose, bool> filter()
+        std::tuple<AgentPose, bool, bool> filter()
         {
             std::lock_guard<std::mutex> g1(_cfg_mutex);
             std::lock_guard<std::mutex> g2(_rb_mutex);
@@ -46,13 +47,13 @@ namespace bobi {
 
             AgentPose p;
             bool is_filtered = false;
-            if (_init_successful && _filtered_pose_list.size() >= _filter->min_history_len()) {
-                _basic_tracker->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
+            if (_new_info_available && _init_successful && _filtered_pose_list.size() >= _filter->min_history_len()) {
+                // _basic_tracker->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
                 _filter->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
                 p = _filtered_pose_list.front();
                 is_filtered = true;
             }
-            else if (_unfiltered_pose_list.size()) {
+            else if (_new_info_available && _unfiltered_pose_list.size()) {
                 _basic_tracker->operator()(_unfiltered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
                 p = _unfiltered_pose_list.front();
             }
@@ -60,7 +61,9 @@ namespace bobi {
                 p = AgentPose();
             }
 
-            return std::make_pair(p, is_filtered);
+            bool new_info = _new_info_available == true;
+            _new_info_available = false;
+            return std::tuple(p, is_filtered, new_info);
         }
 
         AgentPoseList filtered_list()
@@ -72,6 +75,7 @@ namespace bobi {
         void _naive_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
         {
             std::lock_guard<std::mutex> guard(_ind_mutex);
+            _new_info_available = true;
 
             std::vector<bobi_msgs::PoseStamped> copies(pose_vec_ptr->poses.size());
             if (copies.size()) {
@@ -112,6 +116,7 @@ namespace bobi {
         void _robot_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
         {
             std::lock_guard<std::mutex> guard(_rb_mutex);
+            _new_info_available = true;
 
             std::vector<bobi_msgs::PoseStamped> copies(pose_vec_ptr->poses.size());
             if (copies.size()) {
@@ -167,6 +172,7 @@ namespace bobi {
         size_t _num_virtu_agents;
         bool _force_robot_position;
         bool _init_successful;
+        std::atomic<bool> _new_info_available;
 
         std::shared_ptr<FilteringMethodBase> _filter;
         std::shared_ptr<FilteringMethodBase> _basic_tracker;

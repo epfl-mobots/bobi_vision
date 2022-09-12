@@ -322,14 +322,13 @@ namespace bobi {
         {
             double now = ros::Time::now().toSec();
             unsigned long int dt = (now - _start_time);
-            int h = dt / 360;
-            dt -= h * 360;
-            int min = dt / 60;
-            dt -= min * 60;
+            unsigned long int h = dt / 3600;
+            unsigned long int min = (dt / 60) % 60;
+            unsigned long int s = dt % 60;
 
             {
                 std::stringstream stream;
-                stream << std::fixed << std::setfill('0') << std::setw(2) << h << ":" << std::setw(2) << min << ":" << std::setw(2) << dt;
+                stream << std::fixed << std::setfill('0') << std::setw(2) << h << ":" << std::setw(2) << min << ":" << std::setw(2) << s;
                 cv::putText(frame,
                     "Uptime: " + stream.str(),
                     cv::Point(frame.size().width * 0.7, frame.size().height * 0.05),

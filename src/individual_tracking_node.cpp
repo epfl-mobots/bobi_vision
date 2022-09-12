@@ -87,7 +87,9 @@ int main(int argc, char** argv)
         setup_mask->roi(masked_frame);
 
         // detect individuals
-        std::vector<cv::Point3f> poses2d = bd.detect(masked_frame);
+        std::vector<cv::Point3f> poses2d;
+        std::vector<std::vector<cv::Point>> contours;
+        std::tie(poses2d, contours) = bd.detect(masked_frame);
 
         std::vector<int> idcs_to_remove;
         for (size_t i = 0; i < poses2d.size(); ++i) {
@@ -105,12 +107,19 @@ int main(int argc, char** argv)
 
         // publish the poses of the individuals that were detected
         bobi_msgs::PoseVec pv;
-        for (const cv::Point3f& pose2d : poses2d) {
+        for (size_t i = 0; i < poses2d.size(); ++i) {
+            const cv::Point3f& pose2d = poses2d[i];
             bobi_msgs::PoseStamped pose;
             pose.header = header;
             pose.pose.xyz.x = pose2d.x * camera_cfg.pix2m;
             pose.pose.xyz.y = pose2d.y * camera_cfg.pix2m;
             pose.pose.rpy.yaw = pose2d.z;
+            for (const cv::Point point : contours[i]) {
+                geometry_msgs::Point p;
+                p.x = point.x;
+                p.y = point.y;
+                pose.pose.contours.push_back(p);
+            }
             pv.poses.push_back(pose);
         }
         pose_pub.publish(pv);

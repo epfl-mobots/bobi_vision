@@ -44,6 +44,7 @@ namespace bobi {
                 int start_idx = num_robots;
             }
 
+            ROS_WARN("ok1");
             // if the colour detector does not see one or many robots try to fix it
             auto r0 = robot_poses.begin();
             if ((*r0).size() < num_robots) {
@@ -78,8 +79,12 @@ namespace bobi {
                 }
             }
 
+            ROS_WARN("ok2");
+
             // check for nearest centroids and match with past trajectories
             if (num_robots) { // robot pass
+                ROS_WARN("ok6");
+
                 bobi_msgs::PoseStamped inv;
                 inv.pose.xyz.x = INVALID;
                 inv.pose.xyz.y = INVALID;
@@ -90,7 +95,7 @@ namespace bobi {
                 AgentPose copy(num_agents, inv);
                 auto t0 = individual_poses.begin();
                 if (t0->size()) {
-                    std::copy(t0->begin(), t0->begin() + num_agents, copy.begin());
+                    std::copy(t0->begin(), t0->end(), copy.begin());
                 }
 
                 for (size_t i = 0; i < r0->size(); ++i) {
@@ -106,6 +111,8 @@ namespace bobi {
                             min_idx = j;
                         }
                     }
+
+                    ROS_WARN("ok4");
 
                     if (min_idx != INVALID) {
                         if (i >= t0->size()) {
@@ -130,6 +137,8 @@ namespace bobi {
                                 // copy[i].pose.rpy.yaw = (*r0)[i].pose.rpy.yaw;
                             }
                         }
+
+                        ROS_WARN("ok5");
 
                         _missing_robot_count[i] = 0;
                     }
@@ -157,6 +166,8 @@ namespace bobi {
                 t0->resize(copy.size());
                 std::copy(copy.begin(), copy.end(), t0->begin());
             }
+
+            ROS_WARN("ok3");
 
             // ------ Handling top camera ----------
             AgentPoseList copy(individual_poses.size());
@@ -224,19 +235,19 @@ namespace bobi {
             _angle_sims.resize(num_agents, std::numeric_limits<float>::infinity());
             _original_idcs.resize(num_agents, INVALID);
 
-            for (size_t i = sidx; i < (*ct0).size(); ++i) {
+            for (size_t i = sidx; i < (*t1).size(); ++i) {
                 float min_dist = std::numeric_limits<float>::infinity();
                 int min_idx = INVALID;
 
-                for (size_t j = sidx; j < (*t1).size(); ++j) {
-                    float tolerance = MAX_DIST_PER_TS * (_missing_count[j] + 1);
+                for (size_t j = sidx; j < (*ct0).size(); ++j) {
+                    float tolerance = MAX_DIST_PER_TS * (_missing_count[j] + 0.5);
 
-                    float dist = euc_distance((*ct0)[i], (*t1)[j]);
-                    float angle = angle_sim((*ct0)[i], (*t1)[j]);
+                    float dist = euc_distance((*ct0)[j], (*t1)[i]);
+                    float angle = angle_sim((*ct0)[j], (*t1)[i]);
                     if ((dist < min_dist) && (dist <= tolerance)) {
                         min_dist = dist;
-                        min_idx = j;
-                        _angle_sims[i] = angle;
+                        min_idx = i;
+                        _angle_sims[j] = angle;
                     }
                 }
 
@@ -342,28 +353,28 @@ namespace bobi {
             for (size_t i = sidx; i < eidx; ++i) {
                 if ((*ct0)[i].pose.xyz.x == INVALID) {
                     ++_missing_count[i];
-                    if (il.size() > 2 && _missing_count[i] <= 1) {
-                        auto t2 = il.begin();
-                        std::advance(t2, 2);
-                        bobi_msgs::PoseStamped p;
-                        p.pose.xyz.x = ((*t1)[i].pose.xyz.x - (*t2)[i].pose.xyz.x) + (*t1)[i].pose.xyz.x;
-                        p.pose.xyz.y = ((*t1)[i].pose.xyz.y - (*t2)[i].pose.xyz.y) + (*t1)[i].pose.xyz.y;
-                        p.pose.rpy.yaw = _angle_to_pipi(_angle_to_pipi((*t1)[i].pose.rpy.yaw - (*t2)[i].pose.rpy.yaw) + (*t1)[i].pose.rpy.yaw);
-                        p.header.stamp = ros::Time::now();
-                        p.pose.is_filtered = true;
+                    // if (il.size() > 2 && _missing_count[i] <= 1) {
+                    //     auto t2 = il.begin();
+                    //     std::advance(t2, 2);
+                    //     bobi_msgs::PoseStamped p;
+                    //     p.pose.xyz.x = ((*t1)[i].pose.xyz.x - (*t2)[i].pose.xyz.x) + (*t1)[i].pose.xyz.x;
+                    //     p.pose.xyz.y = ((*t1)[i].pose.xyz.y - (*t2)[i].pose.xyz.y) + (*t1)[i].pose.xyz.y;
+                    //     p.pose.rpy.yaw = _angle_to_pipi(_angle_to_pipi((*t1)[i].pose.rpy.yaw - (*t2)[i].pose.rpy.yaw) + (*t1)[i].pose.rpy.yaw);
+                    //     p.header.stamp = ros::Time::now();
+                    //     p.pose.is_filtered = true;
 
-                        (*ct0)[i] = p;
+                    //     (*ct0)[i] = p;
+                    // }
+                    // else {
+                    if (i < (*t0).size()) {
+                        (*ct0)[i] = (*t0)[i];
                     }
                     else {
-                        if (i < (*t0).size()) {
-                            (*ct0)[i] = (*t0)[i];
-                        }
-                        else {
-                            (*ct0)[i] = (*t1)[i];
-                            (*ct0)[i].pose.is_filtered = true;
-                        }
-                        (*ct0)[i].header.stamp = ros::Time::now();
+                        (*ct0)[i] = (*t1)[i];
+                        (*ct0)[i].pose.is_filtered = true;
                     }
+                    (*ct0)[i].header.stamp = ros::Time::now();
+                    // }
                 }
 
                 // if angle change is too big then we can assume that the tracking system

@@ -9,7 +9,7 @@
 #define INVALID -1000
 #define BL 3.5
 #define MAX_DIST_PER_TS 0.01
-#define MIN_DIST_PER_DUPL 0.003
+#define MIN_DIST_PER_DUPL 0.008
 
 namespace bobi {
     class FilteringMethodBase {
@@ -95,7 +95,7 @@ namespace bobi {
             _remove_duplicates(copy, num_robots);
 
             // the following would really not be adequate for more robots
-            if (copy.size() > num_agents && num_robots == 1) {
+            if ((copy.size() > num_agents) && (num_robots == 1)) {
                 _keep_more_distant(copy, *r0, num_agents, num_robots);
             }
 
@@ -113,7 +113,7 @@ namespace bobi {
         {
             for (size_t i = 0; i < l.size(); ++i) {
                 for (size_t j = 0; j < l.size(); ++j) {
-                    if (i == j || i < num_robots) {
+                    if (i == j || i < num_robots || j < num_robots) {
                         continue;
                     }
 
@@ -137,6 +137,7 @@ namespace bobi {
             int removed = 0;
             for (auto idx : idcs) {
                 l.erase(l.begin() + idx - removed);
+                ROS_WARN("removed");
             }
         }
         void _keep_more_distant(AgentPose& inds, AgentPose& robs, int num_agents, int num_robots)
