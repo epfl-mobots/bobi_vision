@@ -138,11 +138,11 @@ namespace bobi {
                         std::string msg;
                         cv::Scalar colour;
                         if (ifiltered) {
-                            msg = "Filtering: ACTIVE";
+                            msg = "ID Assignment: ACTIVE";
                             colour = CV_RGB(0, 200, 0);
                         }
                         else {
-                            msg = "Filtering: INACTIVE";
+                            msg = "ID Assignment: INACTIVE";
                             colour = CV_RGB(200, 0, 0);
                         }
                         cv::putText(frame,
@@ -175,7 +175,7 @@ namespace bobi {
                 // cv::line(frame, p1, p2, _colours[i], 2, cv::LINE_8);
                 // cv::line(frame, p2, p3, _colours[i], 2, cv::LINE_8);
                 // cv::line(frame, p3, p1, _colours[i], 2, cv::LINE_8);
-                cv::circle(frame, com, 5, _colours[i], 2);
+                cv::circle(frame, com, 3, _colours[i], 2);
                 cv::arrowedLine(frame, com, hdg, _colours[i], 2, 8, 0, 0.2);
             }
         }
@@ -227,8 +227,8 @@ namespace bobi {
                 // cv::line(frame, p1, p2, _colours[i], 2, cv::LINE_8);
                 // cv::line(frame, p2, p3, _colours[i], 2, cv::LINE_8);
                 // cv::line(frame, p3, p1, _colours[i], 2, cv::LINE_8);
-                cv::circle(frame, com, 5, _colours[i], 2);
-                cv::arrowedLine(frame, com, hdg, _colours[i], 2, 8, 0, 0.2);
+                cv::circle(frame, com, 5, _colours_below[i], 2);
+                cv::arrowedLine(frame, com, hdg, _colours_below[i], 2, 8, 0, 0.2);
             }
         }
 
@@ -262,7 +262,7 @@ namespace bobi {
             switch (camera_loc) {
             case CameraLocation::BOTTOM:
                 if (target.pose.xyz.x >= 0 && target.pose.xyz.y >= 0) {
-                    cv::drawMarker(frame, cv::Point(target.pose.xyz.x / _bottom_pix2m, target.pose.xyz.y / _bottom_pix2m), cv::Scalar(0, 200, 0), cv::MARKER_TILTED_CROSS, 15, 2);
+                    cv::drawMarker(frame, cv::Point(target.pose.xyz.x / _bottom_pix2m, target.pose.xyz.y / _bottom_pix2m), cv::Scalar(0, 200, 0), cv::MARKER_TILTED_CROSS, 8, 2);
                 }
                 break;
 
@@ -274,7 +274,7 @@ namespace bobi {
                     if (_bottom2top_srv.call(srv)) {
                         target.pose.xyz.x = srv.response.converted_p.x / _top_pix2m;
                         target.pose.xyz.y = srv.response.converted_p.y / _top_pix2m;
-                        cv::drawMarker(frame, cv::Point(target.pose.xyz.x, target.pose.xyz.y), cv::Scalar(0, 200, 0), cv::MARKER_TILTED_CROSS, 15, 2);
+                        cv::drawMarker(frame, cv::Point(target.pose.xyz.x, target.pose.xyz.y), cv::Scalar(0, 200, 0), cv::MARKER_TILTED_CROSS, 8, 2);
                     }
                 }
                 break;
@@ -418,13 +418,19 @@ namespace bobi {
         void _config_cb(bobi_vision::BlobDetectorConfig& config, uint32_t level)
         {
             _num_agents = config.num_agents;
+            _num_robots = config.num_robots;
 
             std::lock_guard<std::mutex> guard(_cfg_mutex);
 
-            auto rand_in_range = [](int lb = 0, int ub = 255) { return (std::rand() % (ub - lb) + lb); };
             _colours.clear();
-            for (size_t i = 0; i < _num_agents; ++i) {
-                _colours.push_back(cv::Scalar(rand_in_range(40), rand_in_range(40), rand_in_range(40)));
+            _colours_below.clear();
+
+            for (size_t i = 0; i < _num_robots; ++i) { // ! should be different for multiple robots
+                _colours.push_back(cv::Scalar(0, 0, 255));
+                _colours_below.push_back(cv::Scalar(255, 255, 255));
+            }
+            for (size_t i = 1; i < _num_agents; ++i) {
+                _colours.push_back(cv::Scalar(255, 0, 0));
             }
         }
 
@@ -475,8 +481,10 @@ namespace bobi {
 
         ros::Time _prev_time;
         size_t _num_agents;
+        size_t _num_robots;
 
         std::vector<cv::Scalar> _colours;
+        std::vector<cv::Scalar> _colours_below;
         std::mutex _cfg_mutex;
 
         double _top_fps;

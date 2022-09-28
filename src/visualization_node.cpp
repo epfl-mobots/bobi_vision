@@ -27,7 +27,7 @@ public:
         _poses_sub = _nh->subscribe("filtered_poses", 1, &RawImageWrapper::_filtered_pose_cb, this);
         _robot_poses_sub = _nh->subscribe("robot_poses", 1, &RawImageWrapper::_robot_pose_cb, this);
         _target_pos_sub = _nh->subscribe("target_position", 1, &RawImageWrapper::_target_pos_cb, this);
-        _kick_specs_sub = _nh->subscribe("kick_specs", 1, &RawImageWrapper::_kick_specs_cb, this);
+        // _kick_specs_sub = _nh->subscribe("kick_specs", 1, &RawImageWrapper::_kick_specs_cb, this);
         _robot_annot_image_pub = _it.advertise("bottom_camera/image_annot", 1);
         _individual_annot_image_pub = _it.advertise("top_camera/image_annot", 1);
 

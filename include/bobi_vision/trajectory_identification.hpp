@@ -24,8 +24,7 @@ namespace bobi {
             : _nh(nh),
               _matrix_len(matrix_len),
               _filter(new FilteringMethodBase()),
-              _init_successful(false),
-              _new_info_available(false)
+              _init_successful(false)
         {
             dynamic_reconfigure::Server<bobi_vision::TrajectoryIdentificationConfig>::CallbackType f;
             f = boost::bind(&TrajectoryIdentification::_config_cb, this, _1, _2);
@@ -39,7 +38,7 @@ namespace bobi {
             _bottom2top_srv = _nh->serviceClient<bobi_msgs::ConvertCoordinates>("convert_bottom2top");
         }
 
-        std::tuple<AgentPose, bool, bool> filter()
+        std::tuple<AgentPose, bool> filter()
         {
             std::lock_guard<std::mutex> g1(_cfg_mutex);
             std::lock_guard<std::mutex> g2(_rb_mutex);
@@ -47,23 +46,16 @@ namespace bobi {
 
             AgentPose p;
             bool is_filtered = false;
-            if (_new_info_available && _init_successful && _filtered_pose_list.size() >= _filter->min_history_len()) {
-                // _basic_tracker->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
+            if (_init_successful && _filtered_pose_list.size() >= _filter->min_history_len()) {
                 _filter->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
                 p = _filtered_pose_list.front();
                 is_filtered = true;
-            }
-            else if (_new_info_available && _unfiltered_pose_list.size()) {
-                _basic_tracker->operator()(_unfiltered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
-                p = _unfiltered_pose_list.front();
             }
             else {
                 p = AgentPose();
             }
 
-            bool new_info = _new_info_available == true;
-            _new_info_available = false;
-            return std::tuple(p, is_filtered, new_info);
+            return std::tuple(p, is_filtered);
         }
 
         AgentPoseList filtered_list()
@@ -75,19 +67,14 @@ namespace bobi {
         void _naive_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
         {
             std::lock_guard<std::mutex> guard(_ind_mutex);
-            _new_info_available = true;
 
             std::vector<bobi_msgs::PoseStamped> copies(pose_vec_ptr->poses.size());
             if (copies.size()) {
                 std::copy(pose_vec_ptr->poses.begin(), pose_vec_ptr->poses.end(), copies.begin());
             }
-            _unfiltered_pose_list.push_front(copies);
-            if (_unfiltered_pose_list.size() > 1) {
-                _unfiltered_pose_list.pop_back();
-            }
 
             if (!_init_successful) {
-                if (copies.size() == _num_agents) {
+                if (copies.size() >= _num_agents) {
                     _filtered_pose_list.push_front(copies);
                 }
                 else {
@@ -96,7 +83,6 @@ namespace bobi {
 
                 if (_filtered_pose_list.size() == _filter->min_history_len()) {
                     _init_successful = true;
-                    // _filter->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
                 }
             }
             else {
@@ -104,7 +90,6 @@ namespace bobi {
                 if (_filtered_pose_list.size() > _matrix_len) {
                     _filtered_pose_list.pop_back();
                 }
-                // _filter->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
             }
 
             if (_init_successful && (_filtered_pose_list.size() < _filter->min_history_len())) {
@@ -116,7 +101,6 @@ namespace bobi {
         void _robot_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
         {
             std::lock_guard<std::mutex> guard(_rb_mutex);
-            _new_info_available = true;
 
             std::vector<bobi_msgs::PoseStamped> copies(pose_vec_ptr->poses.size());
             if (copies.size()) {
@@ -146,7 +130,6 @@ namespace bobi {
             std::tie(_filter, success) = _method_factory(_nh, config.method, _force_robot_position);
             if (success) {
                 ROS_INFO("Trajectory Identification method changed");
-                _unfiltered_pose_list.clear();
                 _filtered_pose_list.clear();
                 _filtered_robot_pose_list.clear();
                 _init_successful = false;
@@ -172,13 +155,11 @@ namespace bobi {
         size_t _num_virtu_agents;
         bool _force_robot_position;
         bool _init_successful;
-        std::atomic<bool> _new_info_available;
 
         std::shared_ptr<FilteringMethodBase> _filter;
         std::shared_ptr<FilteringMethodBase> _basic_tracker;
         size_t _matrix_len;
         AgentPoseList _filtered_pose_list;
-        AgentPoseList _unfiltered_pose_list;
         AgentPoseList _filtered_robot_pose_list;
 
         std::shared_ptr<ros::NodeHandle> _nh;

@@ -56,40 +56,12 @@ namespace bobi {
                 start_idx = 0;
             }
 
-            ROS_INFO("ok3 %ld", individual_poses.size());
-            if (individual_poses.size() == 2) {
-                auto t1 = std::next(individual_poses.begin());
-                for (size_t i = start_idx; i < _num_ind_replay; ++i) {
-                    bobi_msgs::PoseStamped p;
-                    p.pose.xyz.x = _replay_data(_current_iter, i * _cols_iter + 1) + _center[0];
-                    p.pose.xyz.y = _replay_data(_current_iter, i * _cols_iter + 2) + _center[1];
-                    if (_cols_iter > 2) {
-                        p.pose.rpy.yaw = _replay_data(_current_iter, i * _cols_iter + 3);
-                    }
-                    else {
-                        p.pose.rpy.yaw = 0;
-                    }
-                    (*t1).push_back(p);
-                }
-                ++_current_iter;
-            }
-
-            ROS_INFO("ok4");
             auto t0 = individual_poses.begin();
-            auto t1 = std::next(individual_poses.begin());
             for (size_t i = start_idx; i < _num_ind_replay; ++i) {
                 bobi_msgs::PoseStamped p;
                 p.pose.xyz.x = _replay_data(_current_iter, i * _cols_iter + 1) * _scale + _center[0];
                 p.pose.xyz.y = _replay_data(_current_iter, i * _cols_iter + 2) * _scale + _center[1];
-                if (_cols_iter > 2) {
-                    p.pose.rpy.yaw = _replay_data(_current_iter, i * _cols_iter + 3);
-                }
-                else {
-                    int idx = (*t0).size();
-                    bobi_msgs::PoseStamped prev_p = (*t1)[idx];
-                    p.pose.rpy.yaw = std::atan2(p.pose.xyz.y - prev_p.pose.xyz.y, p.pose.xyz.x - prev_p.pose.xyz.x);
-                }
-
+                p.pose.rpy.yaw = _replay_data(_current_iter, i * _cols_iter + 3);
                 p.header.stamp = ros::Time::now();
                 (*t0).push_back(p);
             }
@@ -98,9 +70,7 @@ namespace bobi {
                 _current_iter = 0;
             }
 
-            ROS_INFO("ok1");
             _filter->operator()(individual_poses, robot_poses, num_agents + _num_ind_replay, num_robots);
-            ROS_INFO("ok2");
         }
 
     protected:
