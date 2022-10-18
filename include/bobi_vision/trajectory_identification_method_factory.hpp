@@ -6,7 +6,7 @@
 #include <bobi_vision/filtering_method_base.hpp>
 #include <bobi_vision/nearest_centroid.hpp>
 #include <bobi_vision/replay.hpp>
-#include <bobi_vision/nearest_centroid.hpp>
+#include <bobi_vision/hungarian_based.hpp>
 
 namespace bobi {
     class TrajectoryIdentificationMethodFactory {

@@ -17,7 +17,7 @@ namespace bobi {
         using AgentPoseList = std::list<std::vector<bobi_msgs::PoseStamped>>;
 
     public:
-        HungarianBased(bool force_robot_position = true) : FilteringMethodBase(force_robot_position)
+        HungarianBased(bool force_robot_position = true) : NearestCentroid(force_robot_position)
         {
             _min_history_len = 1;
         }
