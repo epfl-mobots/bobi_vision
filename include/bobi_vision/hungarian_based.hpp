@@ -7,8 +7,8 @@
 #include <numeric>
 #include <algorithm>
 
-#include <hungarian_algorithm.hpp>
-#include <nearest_centroid.hpp>
+#include <bobi_vision/hungarian_algorithm.hpp>
+#include <bobi_vision/nearest_centroid.hpp>
 
 namespace bobi {
 
@@ -28,7 +28,6 @@ namespace bobi {
             size_t num_agents,
             size_t num_robots)
         {
-
             auto r0 = robot_poses.begin();
             auto t0 = individual_poses.begin();
 

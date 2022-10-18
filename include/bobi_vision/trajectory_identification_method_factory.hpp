@@ -6,6 +6,7 @@
 #include <bobi_vision/filtering_method_base.hpp>
 #include <bobi_vision/nearest_centroid.hpp>
 #include <bobi_vision/replay.hpp>
+#include <bobi_vision/nearest_centroid.hpp>
 
 namespace bobi {
     class TrajectoryIdentificationMethodFactory {
@@ -23,6 +24,10 @@ namespace bobi {
 
             case bobi_vision::TrajectoryIdentification_NearestCentroid:
                 new_filter = std::make_shared<NearestCentroid>(NearestCentroid(force_robot_position));
+                break;
+
+            case bobi_vision::TrajectoryIdentification_HungarianBased:
+                new_filter = std::make_shared<HungarianBased>(HungarianBased(force_robot_position));
                 break;
 
             case bobi_vision::TrajectoryIdentification_Replay:

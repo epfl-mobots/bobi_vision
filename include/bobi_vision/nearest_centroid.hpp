@@ -25,7 +25,6 @@ namespace bobi {
             size_t num_agents,
             size_t num_robots)
         {
-
             auto r0 = robot_poses.begin();
             auto t0 = individual_poses.begin();
 
