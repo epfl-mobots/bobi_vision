@@ -1,6 +1,8 @@
 #ifndef BOBI_HUNGARIAN_ALGORITHM_HPP
 #define BOBI_HUNGARIAN_ALGORITHM_HPP
 
+// based on https://github.com/mcximing/hungarian-algorithm-cpp
+
 #include <numeric>
 #include <vector>
 
