@@ -1,5 +1,5 @@
-#ifndef BOBI_NEAREST_CENTROID_HPP
-#define BOBI_NEAREST_CENTROID_HPP
+#ifndef BOBI_HUNGARIAN_BASED_HPP
+#define BOBI_HUNGARIAN_BASED_HPP
 
 #include <bobi_vision/filtering_method_base.hpp>
 #include <bobi_msgs/Pose.h>
@@ -7,14 +7,17 @@
 #include <numeric>
 #include <algorithm>
 
+#include <hungarian_algorithm.hpp>
+#include <nearest_centroid.hpp>
+
 namespace bobi {
 
-    class NearestCentroid : public FilteringMethodBase {
+    class HungarianBased : public NearestCentroid {
 
         using AgentPoseList = std::list<std::vector<bobi_msgs::PoseStamped>>;
 
     public:
-        NearestCentroid(bool force_robot_position = true) : FilteringMethodBase(force_robot_position)
+        HungarianBased(bool force_robot_position = true) : FilteringMethodBase(force_robot_position)
         {
             _min_history_len = 1;
         }
@@ -62,17 +65,6 @@ namespace bobi {
                 }
             }
 
-            // if (individual_poses.size() > 1) {
-            //     auto t1 = std::next(individual_poses.begin());
-            //     _rearrange_to_nearest_centroids(copy, *t0, *t1, num_robots, false);
-            // }
-
-            for (size_t i = 0; i < copy.size(); ++i) {
-                if (copy[i].pose.xyz.x == INVALID) {
-                    ROS_ERROR("Invalid in poses");
-                }
-            }
-
             if (t0->size()) {
                 (*t0).clear();
                 size_t sz = std::min(num_agents, copy.size());
@@ -80,48 +72,41 @@ namespace bobi {
                     t0->push_back(copy[i]);
                 }
             }
+
+            if (individual_poses.size() > 1) {
+                auto t1 = std::next(individual_poses.begin());
+
+                std::vector<std::vector<double>> cost_mat;
+                cost_mat.resize(copy.size());
+                for (size_t i = 0; i < copy.size(); ++i) {
+                    cost_mat[i].resize(t1->size());
+                    for (size_t j = 0; j < t1->size(); ++j) {
+                        double dist = euc_distance(copy[i], (*t1)[j]);
+                        double asim = angle_sim(copy[i], (*t1)[j]);
+                        double cost = 0.9 * dist + 0.1 * asim;
+                        cost_mat[i][j] = cost;
+                    }
+                }
+
+                std::vector<int> assignment_idcs;
+                _ha.solve(cost_mat, assignment_idcs);
+
+                std::vector<size_t> not_matched;
+                t0->clear();
+                std::copy(copy.begin(), copy.end(), std::back_inserter(*t0));
+                for (size_t i = 0; i < cost_mat.size(); ++i) {
+                    if (assignment_idcs[i] >= 0) {
+                        (*t0)[assignment_idcs[i]] = copy[i];
+                    }
+                    else {
+                        not_matched.push_back(i);
+                    }
+                }
+            }
         }
 
     protected:
-        std::vector<float> _rearrange_to_nearest_centroids(AgentPose& copy, const AgentPose& l1, const AgentPose& l2, int sidx, bool is_robot = true)
-        {
-            float min_dist = std::numeric_limits<float>::infinity();
-            int min_idx = INVALID;
-
-            std::vector<bool> taken_idcs(l2.size(), false);
-            std::vector<float> distances(l2.size(), INVALID);
-
-            for (size_t i = sidx; i < l1.size(); ++i) {
-                for (size_t j = sidx; j < l2.size(); ++j) {
-                    float dist = euc_distance(l1[i], l2[j]);
-                    if (dist < min_dist
-                        && !taken_idcs[j]) {
-                        if (min_idx < l2.size()) {
-                            taken_idcs[min_idx] = false;
-                        }
-                        taken_idcs[j] = true;
-                        min_dist = dist;
-                        min_idx = j;
-                    }
-                }
-
-                if (min_idx != INVALID) {
-                    double yaw = std::abs(l1[i].pose.rpy.yaw - l2[min_idx].pose.rpy.yaw);
-
-                    copy[min_idx] = l2[i];
-                    copy[i] = l2[min_idx];
-                    copy[i].pose.is_swapped = true;
-                    if (yaw > M_PI && is_robot) {
-                        copy[i].pose.rpy.yaw = l1[i].pose.rpy.yaw;
-                        copy[i].pose.is_filtered = true;
-                    }
-
-                    distances[min_idx] = min_dist;
-                }
-            }
-
-            return distances;
-        }
+        algo::HungarianAlgorithm _ha;
     };
 } // namespace bobi
 
