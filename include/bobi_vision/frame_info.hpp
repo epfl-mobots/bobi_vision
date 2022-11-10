@@ -429,8 +429,9 @@ namespace bobi {
                 _colours.push_back(cv::Scalar(0, 0, 255));
                 _colours_below.push_back(cv::Scalar(255, 255, 255));
             }
+            auto rand_in_range = [](int lb = 0, int ub = 255) { return (std::rand() % (ub - lb) + lb); };
             for (size_t i = 1; i < _num_agents; ++i) {
-                _colours.push_back(cv::Scalar(255, 0, 0));
+                _colours.push_back(cv::Scalar(rand_in_range(0, 250), rand_in_range(0, 250), rand_in_range(0, 250)));
             }
         }
 

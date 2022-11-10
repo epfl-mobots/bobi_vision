@@ -108,8 +108,19 @@ namespace bobi {
                     double yaw = std::abs(l1[i].pose.rpy.yaw - l2[min_idx].pose.rpy.yaw);
 
                     copy[min_idx] = l2[i];
+                    copy[min_idx].pose.xyz = l2[i].pose.xyz;
+                    copy[min_idx].pose.rpy = l2[i].pose.rpy;
+                    std::copy(l2[i].pose.contours.begin(), l2[i].pose.contours.end(), std::back_inserter( copy[min_idx].pose.contours));
+                    copy[min_idx].pose.is_filtered = l2[i].pose.is_filtered;
+                    copy[min_idx].pose.is_swapped = l2[i].pose.is_swapped;
+
                     copy[i] = l2[min_idx];
+                    copy[i].pose.xyz = l2[min_idx].pose.xyz;
+                    copy[i].pose.rpy = l2[min_idx].pose.rpy;
+                    std::copy(l2[min_idx].pose.contours.begin(), l2[min_idx].pose.contours.end(), std::back_inserter(copy[i].pose.contours));
+                    copy[i].pose.is_filtered = l2[min_idx].pose.is_filtered;
                     copy[i].pose.is_swapped = true;
+                    
                     if (yaw > M_PI && is_robot) {
                         copy[i].pose.rpy.yaw = l1[i].pose.rpy.yaw;
                         copy[i].pose.is_filtered = true;
