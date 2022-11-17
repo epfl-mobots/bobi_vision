@@ -39,6 +39,8 @@ generate_dynamic_reconfigure_options(
 catkin_package(
   CATKIN_DEPENDS bobi_msgs
   DEPENDS EIGEN3
+  INCLUDE_DIRS include
+
 )
 
 include_directories(
@@ -79,3 +81,8 @@ add_dependencies(coordinate_converter_node ${catkin_EXPORTED_TARGETS} bobi_msgs_
 add_executable(aruco_tracking_node src/aruco_tracking_node.cpp ${TRACKING_SOURCES})
 target_link_libraries(aruco_tracking_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
 add_dependencies(aruco_tracking_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg bobi_msgs_generate_messages_cpp)
+
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.hpp"
+  PATTERN ".svn" EXCLUDE)
