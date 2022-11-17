@@ -64,7 +64,7 @@ namespace bobi {
 
         void draw_roi(cv::Mat& frame, const cv::Scalar& colour) const
         {
-            cv::circle(frame, cv::Point(_x, _y), _r, colour);
+            cv::circle(frame, cv::Point(_x, _y), _r, colour, 2);
         }
 
         const std::string type() override
