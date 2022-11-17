@@ -10,6 +10,8 @@
 #include <bobi_vision/BlobDetectorConfig.h>
 #include <bobi_vision/trajectory_identification_method_factory.hpp>
 
+#include <bobi_vision/coordinate_mapper.hpp>
+
 #include <mutex>
 
 namespace bobi {
@@ -32,10 +34,21 @@ namespace bobi {
 
             std::tie(_basic_tracker, std::ignore) = _method_factory(_nh, 0, _force_robot_position);
 
+            std::tie(_points_bottom, _points_top, _top_cfg, _bottom_cfg) = init_coordinate_mapper(nh);
+            _bottom2top = std::shared_ptr<CoordinateMapper>(new CoordinateMapper(_nh,
+                "None",
+                _points_bottom,
+                _points_top,
+                _top_cfg.camera_matrix,
+                _top_cfg.distortion_coeffs,
+                _top_cfg.pix2m,
+                _top_cfg.camera_px_width_undistorted,
+                _top_cfg.camera_px_height_undistorted));
+
             // Pose subscribers
             _naive_poses_sub = _nh->subscribe("naive_poses", 1, &TrajectoryIdentification::_naive_pose_cb, this);
             _robot_poses_sub = _nh->subscribe("robot_poses", 1, &TrajectoryIdentification::_robot_pose_cb, this);
-            _bottom2top_srv = _nh->serviceClient<bobi_msgs::ConvertCoordinates>("convert_bottom2top");
+            // _bottom2top_srv = _nh->serviceClient<bobi_msgs::ConvertCoordinates>("convert_bottom2top");
         }
 
         std::tuple<AgentPose, bool> filter()
@@ -46,13 +59,10 @@ namespace bobi {
 
             AgentPose p;
             bool is_filtered = false;
-            if (_init_successful && _filtered_pose_list.size() >= _filter->min_history_len()) {
+            if (_filtered_pose_list.size()) {
                 _filter->operator()(_filtered_pose_list, _filtered_robot_pose_list, _num_agents, _num_robots);
                 p = _filtered_pose_list.front();
                 is_filtered = true;
-            }
-            else {
-                p = AgentPose();
             }
 
             return std::tuple(p, is_filtered);
@@ -69,32 +79,13 @@ namespace bobi {
             std::lock_guard<std::mutex> guard(_ind_mutex);
 
             std::vector<bobi_msgs::PoseStamped> copies(pose_vec_ptr->poses.size());
+
             if (copies.size()) {
                 std::copy(pose_vec_ptr->poses.begin(), pose_vec_ptr->poses.end(), copies.begin());
-            }
-
-            if (!_init_successful) {
-                if (copies.size() >= _num_agents) {
-                    _filtered_pose_list.push_front(copies);
-                }
-                else {
-                    _filtered_pose_list.clear();
-                }
-
-                if (_filtered_pose_list.size() == _filter->min_history_len()) {
-                    _init_successful = true;
-                }
-            }
-            else {
                 _filtered_pose_list.push_front(copies);
                 if (_filtered_pose_list.size() > _matrix_len) {
                     _filtered_pose_list.pop_back();
                 }
-            }
-
-            if (_init_successful && (_filtered_pose_list.size() < _filter->min_history_len())) {
-                _init_successful = false;
-                _filtered_pose_list.clear();
             }
         }
 
@@ -109,11 +100,11 @@ namespace bobi {
 
             for (size_t i = 0; i < copies.size(); ++i) {
                 geometry_msgs::Point converted_p;
-                copies[i].pose.xyz = _convert_bottom2top(copies[i].pose.xyz);
+                // copies[i].pose.xyz = _convert_bottom2top(copies[i].pose.xyz);
+                copies[i].pose.xyz = _bottom2top->convert(copies[i].pose.xyz);
             }
 
             _filtered_robot_pose_list.push_front(copies);
-
             if (_filtered_robot_pose_list.size() > _matrix_len) {
                 _filtered_robot_pose_list.pop_back();
             }
@@ -168,6 +159,12 @@ namespace bobi {
         ros::ServiceClient _bottom2top_srv;
         std::mutex _ind_mutex;
         std::mutex _rb_mutex;
+
+        std::vector<cv::Point2d> _points_bottom;
+        std::vector<cv::Point2d> _points_top;
+        top::CameraConfig _top_cfg;
+        bottom::CameraConfig _bottom_cfg;
+        std::shared_ptr<CoordinateMapper> _bottom2top;
 
         dynamic_reconfigure::Server<bobi_vision::TrajectoryIdentificationConfig> _config_server;
         std::mutex _cfg_mutex;

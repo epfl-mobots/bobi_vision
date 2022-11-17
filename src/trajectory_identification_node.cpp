@@ -11,7 +11,7 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "trajectory_identification_node");
     std::shared_ptr<ros::NodeHandle> nh(new ros::NodeHandle());
 
-    TrajectoryIdentification ti(nh, 5);
+    TrajectoryIdentification ti(nh, 2);
 
     ros::Publisher pose_pub = nh->advertise<bobi_msgs::PoseVec>("filtered_poses", 1);
     ros::Publisher speed_pub = nh->advertise<bobi_msgs::SpeedEstimateVec>("speed_estimates", 1);
