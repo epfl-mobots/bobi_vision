@@ -7,6 +7,7 @@
 
 #include <bobi_msgs/PoseStamped.h>
 #include <bobi_msgs/ConvertCoordinates.h>
+#include <bobi_vision/coordinate_mapper.hpp>
 #include <bobi_msgs/KickSpecs.h>
 #include <bobi_vision/BlobDetectorConfig.h>
 #include <bobi_vision/mask_factory.hpp>
@@ -29,6 +30,27 @@ namespace bobi {
               _bottom_fps(0.)
         {
             _prev_time = ros::Time::now();
+
+            std::tie(_points_bottom, _points_top, _top_cfg, _bottom_cfg) = init_coordinate_mapper(nh);
+            _bottom2top = std::shared_ptr<CoordinateMapper>(new CoordinateMapper(_nh,
+                "None",
+                _points_bottom,
+                _points_top,
+                _top_cfg.camera_matrix,
+                _top_cfg.distortion_coeffs,
+                _top_cfg.pix2m,
+                _top_cfg.camera_px_width_undistorted,
+                _top_cfg.camera_px_height_undistorted));
+
+            _top2bottom = std::shared_ptr<CoordinateMapper>(new CoordinateMapper(_nh,
+                "None",
+                _points_top,
+                _points_bottom,
+                _bottom_cfg.camera_matrix,
+                _bottom_cfg.distortion_coeffs,
+                _bottom_cfg.pix2m,
+                _bottom_cfg.camera_px_width_undistorted,
+                _bottom_cfg.camera_px_height_undistorted));
 
             _bottom2top_srv = _nh->serviceClient<bobi_msgs::ConvertCoordinates>("convert_bottom2top");
             _top2bottom_srv = _nh->serviceClient<bobi_msgs::ConvertCoordinates>("convert_top2bottom");
@@ -71,7 +93,7 @@ namespace bobi {
                 std::stringstream stream;
                 stream << std::fixed << std::setprecision(1) << 1. / dt;
                 cv::putText(frame,
-                    "FPS (processing): " + stream.str(),
+                    "FPS (top): " + stream.str(),
                     cv::Point(frame.size().width * 0.03, frame.size().height * 0.05),
                     cv::FONT_HERSHEY_DUPLEX,
                     0.5,
@@ -83,7 +105,7 @@ namespace bobi {
                 std::stringstream stream;
                 stream << std::fixed << std::setprecision(1) << _top_fps;
                 cv::putText(frame,
-                    "FPS (top): " + stream.str(),
+                    "FPS (filtering): " + stream.str(),
                     cv::Point(frame.size().width * 0.03, frame.size().height * 0.09),
                     cv::FONT_HERSHEY_DUPLEX,
                     0.5,
@@ -108,7 +130,7 @@ namespace bobi {
 
         void draw_poses(cv::Mat& frame, std::vector<bobi_msgs::PoseStamped> poses, const CameraLocation camera_loc, bool ifiltered, bool rfiltered)
         {
-            if (poses.size() > 0) {
+            if (poses.size() > 0 && camera_loc == CameraLocation::TOP) {
                 double cur_fps = 1. / ros::Duration(poses[0].header.stamp - _prev_top_header.stamp).toSec();
                 if (cur_fps != std::numeric_limits<double>::infinity()) {
                     _top_fps = cur_fps;
@@ -119,13 +141,9 @@ namespace bobi {
             for (size_t i = 0; i < poses.size(); ++i) {
                 bobi_msgs::PoseStamped pose = poses[i];
                 if (camera_loc == CameraLocation::BOTTOM) {
-                    bobi_msgs::ConvertCoordinates srv;
-                    srv.request.p.x = pose.pose.xyz.x;
-                    srv.request.p.y = pose.pose.xyz.y;
-                    if (_top2bottom_srv.call(srv)) {
-                        pose.pose.xyz.x = srv.response.converted_p.x / _bottom_pix2m;
-                        pose.pose.xyz.y = srv.response.converted_p.y / _bottom_pix2m;
-                    }
+                    pose.pose.xyz = _top2bottom->convert(pose.pose.xyz);
+                    pose.pose.xyz.x /= _bottom_pix2m;
+                    pose.pose.xyz.y /= _bottom_pix2m;
                 }
                 else {
                     pose.pose.xyz.x /= _top_pix2m;
@@ -159,22 +177,7 @@ namespace bobi {
                 cv::Point com(pose.pose.xyz.x, pose.pose.xyz.y);
                 cv::Point hdg(pose.pose.xyz.x + r * std::cos(pose.pose.rpy.yaw), pose.pose.xyz.y + r * std::sin(pose.pose.rpy.yaw));
 
-                // float offset = 13.;
-                // float base_coef = 4.;
-                // cv::Point p1(pose.pose.xyz.x + 2 * offset * std::cos(pose.pose.rpy.yaw), pose.pose.xyz.y + 2 * offset * std::sin(pose.pose.rpy.yaw));
-                // cv::Point p2(pose.pose.xyz.x - 1.5 * offset * std::cos(pose.pose.rpy.yaw + M_PI / base_coef), pose.pose.xyz.y - 1.5 * offset * std::sin(pose.pose.rpy.yaw + M_PI / base_coef));
-                // cv::Point p3(pose.pose.xyz.x - 1.5 * offset * std::cos(pose.pose.rpy.yaw - M_PI / base_coef), pose.pose.xyz.y - 1.5 * offset * std::sin(pose.pose.rpy.yaw - M_PI / base_coef));
-
-                // const cv::Point points[] = {p1, p2, p3};
-
-                // cv::circle(frame, p1, 2, cv::Scalar(0, 0, 255));
-                // cv::circle(frame, p2, 2, cv::Scalar(0, 255, 0));
-                // cv::circle(frame, p3, 2, cv::Scalar(255, 0, 0));
-
                 std::lock_guard<std::mutex> guard(_cfg_mutex);
-                // cv::line(frame, p1, p2, _colours[i], 2, cv::LINE_8);
-                // cv::line(frame, p2, p3, _colours[i], 2, cv::LINE_8);
-                // cv::line(frame, p3, p1, _colours[i], 2, cv::LINE_8);
                 cv::circle(frame, com, 3, _colours[i], 2);
                 cv::arrowedLine(frame, com, hdg, _colours[i], 2, 8, 0, 0.2);
             }
@@ -182,7 +185,7 @@ namespace bobi {
 
         void draw_robot_poses(cv::Mat& frame, std::vector<bobi_msgs::PoseStamped> poses, const CameraLocation camera_loc, bool ifiltered, bool rfiltered)
         {
-            if (poses.size() > 0) {
+            if (poses.size() > 0 && camera_loc == CameraLocation::BOTTOM) {
                 double cur_fps = 1. / ros::Duration(poses[0].header.stamp - _prev_bottom_header.stamp).toSec();
                 if (cur_fps != std::numeric_limits<double>::infinity()) {
                     _bottom_fps = cur_fps;
@@ -194,41 +197,24 @@ namespace bobi {
                 bobi_msgs::PoseStamped pose = poses[i];
 
                 if (camera_loc == CameraLocation::TOP) {
-                    bobi_msgs::ConvertCoordinates srv;
-                    srv.request.p.x = pose.pose.xyz.x;
-                    srv.request.p.y = pose.pose.xyz.y;
-                    if (_bottom2top_srv.call(srv)) {
-                        pose.pose.xyz.x = srv.response.converted_p.x / _top_pix2m;
-                        pose.pose.xyz.y = srv.response.converted_p.y / _top_pix2m;
-                    }
+                    pose.pose.xyz = _bottom2top->convert(pose.pose.xyz);
+                    pose.pose.xyz.x /= _top_pix2m;
+                    pose.pose.xyz.y /= _top_pix2m;
                 }
                 else {
                     pose.pose.xyz.x /= _bottom_pix2m;
                     pose.pose.xyz.y /= _bottom_pix2m;
+
+                    float r = 30.;
+                    cv::Point com(pose.pose.xyz.x, pose.pose.xyz.y);
+                    cv::Point hdg(pose.pose.xyz.x + r * std::cos(pose.pose.rpy.yaw), pose.pose.xyz.y + r * std::sin(pose.pose.rpy.yaw));
+
+                    std::lock_guard<std::mutex> guard(_cfg_mutex);
+                    if (_colours_below.size()) {
+                        cv::circle(frame, com, 3, _colours_below[i], 2);
+                        cv::arrowedLine(frame, com, hdg, _colours_below[i], 2, 8, 0, 0.2);
+                    }
                 }
-
-                float r = 30.;
-                cv::Point com(pose.pose.xyz.x, pose.pose.xyz.y);
-                cv::Point hdg(pose.pose.xyz.x + r * std::cos(pose.pose.rpy.yaw), pose.pose.xyz.y + r * std::sin(pose.pose.rpy.yaw));
-
-                // float offset = 13.;
-                // float base_coef = 4.;
-                // cv::Point p1(pose.pose.xyz.x + 2 * offset * std::cos(pose.pose.rpy.yaw), pose.pose.xyz.y + 2 * offset * std::sin(pose.pose.rpy.yaw));
-                // cv::Point p2(pose.pose.xyz.x - 1.5 * offset * std::cos(pose.pose.rpy.yaw + M_PI / base_coef), pose.pose.xyz.y - 1.5 * offset * std::sin(pose.pose.rpy.yaw + M_PI / base_coef));
-                // cv::Point p3(pose.pose.xyz.x - 1.5 * offset * std::cos(pose.pose.rpy.yaw - M_PI / base_coef), pose.pose.xyz.y - 1.5 * offset * std::sin(pose.pose.rpy.yaw - M_PI / base_coef));
-
-                // const cv::Point points[] = {p1, p2, p3};
-
-                // cv::circle(frame, p1, 2, cv::Scalar(0, 0, 255));
-                // cv::circle(frame, p2, 2, cv::Scalar(0, 255, 0));
-                // cv::circle(frame, p3, 2, cv::Scalar(255, 0, 0));
-
-                std::lock_guard<std::mutex> guard(_cfg_mutex);
-                // cv::line(frame, p1, p2, _colours[i], 2, cv::LINE_8);
-                // cv::line(frame, p2, p3, _colours[i], 2, cv::LINE_8);
-                // cv::line(frame, p3, p1, _colours[i], 2, cv::LINE_8);
-                cv::circle(frame, com, 3, _colours_below[i], 2);
-                cv::arrowedLine(frame, com, hdg, _colours_below[i], 2, 8, 0, 0.2);
             }
         }
 
@@ -236,7 +222,7 @@ namespace bobi {
         {
             switch (camera_loc) {
             case CameraLocation::TOP:
-                cv::circle(frame, cv::Point(frame.size().width / 2., frame.size().height / 2.), 2, cv::Scalar(0, 255, 0), cv::FILLED);
+                cv::circle(frame, cv::Point(frame.size().width / 2., frame.size().height / 2.), 2, cv::Scalar(31, 95, 255), cv::FILLED);
                 break;
             case CameraLocation::BOTTOM:
             default:
@@ -248,11 +234,11 @@ namespace bobi {
         {
             switch (camera_loc) {
             case CameraLocation::TOP:
-                _top_mask->draw_roi(frame, cv::Scalar(0, 255, 0));
+                _top_mask->draw_roi(frame, cv::Scalar(31, 95, 255));
                 break;
 
             case CameraLocation::BOTTOM:
-                _bottom_mask->draw_roi(frame, cv::Scalar(0, 255, 0));
+                _bottom_mask->draw_roi(frame, cv::Scalar(31, 95, 255));
                 break;
             }
         }
@@ -262,20 +248,16 @@ namespace bobi {
             switch (camera_loc) {
             case CameraLocation::BOTTOM:
                 if (target.pose.xyz.x >= 0 && target.pose.xyz.y >= 0) {
-                    cv::drawMarker(frame, cv::Point(target.pose.xyz.x / _bottom_pix2m, target.pose.xyz.y / _bottom_pix2m), cv::Scalar(0, 200, 0), cv::MARKER_TILTED_CROSS, 8, 2);
+                    cv::drawMarker(frame, cv::Point(target.pose.xyz.x / _bottom_pix2m, target.pose.xyz.y / _bottom_pix2m), cv::Scalar(31, 95, 255), cv::MARKER_TILTED_CROSS, 8, 2);
                 }
                 break;
 
             case CameraLocation::TOP:
                 if (target.pose.xyz.x >= 0 && target.pose.xyz.y >= 0) {
-                    bobi_msgs::ConvertCoordinates srv;
-                    srv.request.p.x = target.pose.xyz.x;
-                    srv.request.p.y = target.pose.xyz.y;
-                    if (_bottom2top_srv.call(srv)) {
-                        target.pose.xyz.x = srv.response.converted_p.x / _top_pix2m;
-                        target.pose.xyz.y = srv.response.converted_p.y / _top_pix2m;
-                        cv::drawMarker(frame, cv::Point(target.pose.xyz.x, target.pose.xyz.y), cv::Scalar(0, 200, 0), cv::MARKER_TILTED_CROSS, 8, 2);
-                    }
+                    target.pose.xyz = _bottom2top->convert(target.pose.xyz);
+                    target.pose.xyz.x /= _top_pix2m;
+                    target.pose.xyz.y /= _top_pix2m;
+                    cv::drawMarker(frame, cv::Point(target.pose.xyz.x, target.pose.xyz.y), cv::Scalar(31, 95, 255), cv::MARKER_TILTED_CROSS, 8, 2);
                 }
                 break;
             }
@@ -284,34 +266,48 @@ namespace bobi {
         void draw_kick(cv::Mat& frame, bobi_msgs::KickSpecs kick, const CameraLocation camera_loc)
         {
             switch (camera_loc) {
-            case CameraLocation::BOTTOM: {
-                cv::Point start(kick.agent.pose.xyz.x / _bottom_pix2m, kick.agent.pose.xyz.y / _bottom_pix2m);
-                cv::Point end(kick.target_x / _bottom_pix2m, kick.target_y / _bottom_pix2m);
-                cv::drawMarker(frame, start, cv::Scalar(0, 200, 200), cv::MARKER_DIAMOND, 15, 2);
-                cv::arrowedLine(frame, start, end, cv::Scalar(0, 200, 200), 2, cv::LINE_8, 0, 0.15);
-            } break;
-
             case CameraLocation::TOP: {
-                cv::Point start, end;
+                // cv::Point start(kick.agent.pose.xyz.x / _top_pix2m, kick.agent.pose.xyz.y / _top_pix2m);
+                // cv::Point end(kick.target_x / _top_pix2m, kick.target_y / _top_pix2m);
+                // cv::drawMarker(frame, start, cv::Scalar(0, 200, 200), cv::MARKER_DIAMOND, 15, 2);
+                // cv::arrowedLine(frame, start, end, cv::Scalar(0, 200, 200), 2, cv::LINE_8, 0, 0.15);
 
-                bobi_msgs::ConvertCoordinates srv;
-                srv.request.p.x = kick.agent.pose.xyz.x;
-                srv.request.p.y = kick.agent.pose.xyz.y;
-                if (_bottom2top_srv.call(srv)) {
-                    kick.agent.pose.xyz.x = srv.response.converted_p.x / _top_pix2m;
-                    kick.agent.pose.xyz.y = srv.response.converted_p.y / _top_pix2m;
+                if (kick.perceived > 0) {
+                    int step;
+                    if (kick.perceived == 1) {
+                        step = 100;
+                    }
+                    else {
+                        step = 255. / kick.perceived;
+                    }
 
-                    start = cv::Point(kick.agent.pose.xyz.x, kick.agent.pose.xyz.y);
-                    cv::drawMarker(frame, start, cv::Scalar(0, 200, 200), cv::MARKER_DIAMOND, 15, 2);
+                    int neighs = std::min(kick.perceived, static_cast<int>(kick.neighs.poses.size()));
+                    for (int i = 0; i < neighs; ++i) {
+                        bobi_msgs::PoseStamped pose = kick.neighs.poses[i];
+                        cv::Point com(pose.pose.xyz.x / _top_pix2m, pose.pose.xyz.y / _top_pix2m);
+                        cv::circle(frame, com, 8, cv::Scalar(0, std::max(step * (i + 1), 255), 0), 2);
+                    }
                 }
 
-                srv.request.p.x = kick.target_x;
-                srv.request.p.y = kick.target_y;
-                if (_bottom2top_srv.call(srv)) {
-                    kick.target_x = srv.response.converted_p.x / _top_pix2m;
-                    kick.target_y = srv.response.converted_p.y / _top_pix2m;
-                    end = cv::Point(kick.target_x, kick.target_y);
-                    cv::arrowedLine(frame, start, end, cv::Scalar(0, 200, 200), 2, cv::LINE_8, 0, 0.15);
+            } break;
+
+            case CameraLocation::BOTTOM: {
+                if (kick.perceived > 0) {
+                    int step;
+                    if (kick.perceived == 1) {
+                        step = 100;
+                    }
+                    else {
+                        step = 255. / kick.perceived;
+                    }
+
+                    int neighs = std::min(kick.perceived, static_cast<int>(kick.neighs.poses.size()));
+                    for (int i = 0; i < neighs; ++i) {
+                        bobi_msgs::PoseStamped pose = kick.neighs.poses[i];
+                        pose.pose.xyz = _top2bottom->convert(pose.pose.xyz);
+                        cv::Point com(pose.pose.xyz.x / _bottom_pix2m, pose.pose.xyz.y / _bottom_pix2m);
+                        cv::circle(frame, com, 8, cv::Scalar(0, std::max(step * (i + 1), 255), 0), 2);
+                    }
                 }
 
             } break;
@@ -427,11 +423,12 @@ namespace bobi {
 
             for (size_t i = 0; i < _num_robots; ++i) { // ! should be different for multiple robots
                 _colours.push_back(cv::Scalar(0, 0, 255));
-                _colours_below.push_back(cv::Scalar(255, 255, 255));
+                _colours_below.push_back(cv::Scalar(0, 0, 255));
             }
             auto rand_in_range = [](int lb = 0, int ub = 255) { return (std::rand() % (ub - lb) + lb); };
             for (size_t i = 1; i < _num_agents; ++i) {
-                _colours.push_back(cv::Scalar(rand_in_range(0, 250), rand_in_range(0, 250), rand_in_range(0, 250)));
+                _colours.push_back(cv::Scalar(255, 0, 0));
+                // _colours.push_back(cv::Scalar(rand_in_range(0, 250), rand_in_range(0, 250), rand_in_range(0, 250)));
             }
         }
 
@@ -474,9 +471,16 @@ namespace bobi {
         }
 
         std::shared_ptr<ros::NodeHandle> _nh;
+        ros::Publisher _target_position;
+
+        std::vector<cv::Point2d> _points_bottom;
+        std::vector<cv::Point2d> _points_top;
+        top::CameraConfig _top_cfg;
+        bottom::CameraConfig _bottom_cfg;
+        std::shared_ptr<CoordinateMapper> _bottom2top;
+        std::shared_ptr<CoordinateMapper> _top2bottom;
         ros::ServiceClient _top2bottom_srv;
         ros::ServiceClient _bottom2top_srv;
-        ros::Publisher _target_position;
 
         dynamic_reconfigure::Server<bobi_vision::BlobDetectorConfig> _config_server;
 

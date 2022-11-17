@@ -27,7 +27,7 @@ public:
         _poses_sub = _nh->subscribe("filtered_poses", 1, &RawImageWrapper::_filtered_pose_cb, this);
         _robot_poses_sub = _nh->subscribe("robot_poses", 1, &RawImageWrapper::_robot_pose_cb, this);
         _target_pos_sub = _nh->subscribe("target_position", 1, &RawImageWrapper::_target_pos_cb, this);
-        // _kick_specs_sub = _nh->subscribe("kick_specs", 1, &RawImageWrapper::_kick_specs_cb, this);
+        _kick_specs_sub = _nh->subscribe("kick_specs", 1, &RawImageWrapper::_kick_specs_cb, this);
         _robot_annot_image_pub = _it.advertise("bottom_camera/image_annot", 1);
         _individual_annot_image_pub = _it.advertise("top_camera/image_annot", 1);
 
@@ -69,24 +69,41 @@ public:
         _target_position.pose.xyz.y = -1;
     }
 
-protected:
-    void _top_und_image_cb(const sensor_msgs::ImageConstPtr& msg)
+    void spin_once()
     {
         std_msgs::Header header;
         header.stamp = ros::Time::now();
-
-        try {
-            cv::Mat frame = cv_bridge::toCvShare(msg, "mono8")->image;
-            cv::cvtColor(frame, frame, cv::COLOR_GRAY2BGR);
-
-            _fi.draw_all(frame, _individual_poses, _robot_poses, _target_position, _ipose_filtered, _rpose_filtered, bobi::CameraLocation::TOP);
+        if (!_latest_top_frame.empty()) {
+            cv::cvtColor(_latest_top_frame, _latest_top_frame, cv::COLOR_GRAY2BGR);
+            _fi.draw_all(_latest_top_frame, _individual_poses, _robot_poses, _target_position, _ipose_filtered, _rpose_filtered, bobi::CameraLocation::TOP);
             if (_latest_kick.agent.pose.xyz.x > 0 && _latest_kick.agent.pose.xyz.y > 0) {
-                _fi.draw_kick(frame, _latest_kick, bobi::CameraLocation::TOP);
+                _fi.draw_kick(_latest_top_frame, _latest_kick, bobi::CameraLocation::TOP);
                 --_received_kick;
             }
 
-            sensor_msgs::ImagePtr image_ptr = cv_bridge::CvImage(header, "bgr8", frame).toImageMsg();
+            sensor_msgs::ImagePtr image_ptr = cv_bridge::CvImage(header, "bgr8", _latest_top_frame).toImageMsg();
             _individual_annot_image_pub.publish(image_ptr);
+            _latest_top_frame.release();
+        }
+
+        if (!_latest_bottom_frame.empty()) {
+            _fi.draw_all(_latest_bottom_frame, _individual_poses, _robot_poses, _target_position, _ipose_filtered, _rpose_filtered, bobi::CameraLocation::BOTTOM);
+            if (_latest_kick.agent.pose.xyz.x > 0 && _latest_kick.agent.pose.xyz.y > 0) {
+                _fi.draw_kick(_latest_bottom_frame, _latest_kick, bobi::CameraLocation::BOTTOM);
+                --_received_kick;
+            }
+
+            sensor_msgs::ImagePtr image_ptr = cv_bridge::CvImage(header, "bgr8", _latest_bottom_frame).toImageMsg();
+            _robot_annot_image_pub.publish(image_ptr);
+            _latest_bottom_frame.release();
+        }
+    }
+
+protected:
+    void _top_und_image_cb(const sensor_msgs::ImageConstPtr& msg)
+    {
+        try {
+            _latest_top_frame = cv_bridge::toCvShare(msg, "mono8")->image.clone();
         }
         catch (cv_bridge::Exception& e) {
             ROS_ERROR("Could not convert from '%s' to 'mono8'.", msg->encoding.c_str());
@@ -95,20 +112,8 @@ protected:
 
     void bottom_und_image_cb(const sensor_msgs::ImageConstPtr& msg)
     {
-        std_msgs::Header header;
-        header.stamp = ros::Time::now();
-
         try {
-            cv::Mat frame = cv_bridge::toCvShare(msg, "bgr8")->image;
-
-            _fi.draw_all(frame, _individual_poses, _robot_poses, _target_position, _ipose_filtered, _rpose_filtered, bobi::CameraLocation::BOTTOM);
-            if (_latest_kick.agent.pose.xyz.x > 0 && _latest_kick.agent.pose.xyz.y > 0) {
-                _fi.draw_kick(frame, _latest_kick, bobi::CameraLocation::BOTTOM);
-                --_received_kick;
-            }
-
-            sensor_msgs::ImagePtr image_ptr = cv_bridge::CvImage(header, "bgr8", frame).toImageMsg();
-            _robot_annot_image_pub.publish(image_ptr);
+            _latest_bottom_frame = cv_bridge::toCvShare(msg, "bgr8")->image.clone();
         }
         catch (cv_bridge::Exception& e) {
             ROS_ERROR("Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
@@ -162,6 +167,9 @@ protected:
     double _top_pix2m;
     double _bottom_pix2m;
 
+    cv::Mat _latest_top_frame;
+    cv::Mat _latest_bottom_frame;
+
     FrameInfo _fi;
 };
 
@@ -170,8 +178,13 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "visualization_node");
     std::shared_ptr<ros::NodeHandle> nh(new ros::NodeHandle());
 
+    ros::Rate rate(30);
     RawImageWrapper riw(nh);
-    ros::spin();
+    while (ros::ok()) {
+        riw.spin_once();
+        ros::spinOnce();
+        rate.sleep();
+    }
 
     return 0;
 }
