@@ -77,7 +77,11 @@ int main(int argc, char** argv)
         std_msgs::Header header;
         header.stamp = ros::Time::now();
 
-        camera >> frame;
+        bool success = camera.read(frame);
+        if (!success) {
+            continue;
+        }
+
         cv::cvtColor(frame, frame, cv::COLOR_BGR2GRAY); // enforce image_transport compatible grayscale
 
         cv::undistort(frame, frame_und, camera_mat, distortion_coeffs, new_camera_mat);

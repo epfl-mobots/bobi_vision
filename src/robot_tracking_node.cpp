@@ -83,7 +83,10 @@ int main(int argc, char** argv)
         std_msgs::Header header;
         header.stamp = ros::Time::now();
 
-        camera >> frame;
+        bool success = camera.read(frame);
+        if (!success) {
+            continue;
+        }
 
         cv::undistort(frame, frame_und, camera_mat, distortion_coeffs, new_camera_mat);
         frame_und = frame_und(roi);
