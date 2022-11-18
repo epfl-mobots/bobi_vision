@@ -65,6 +65,16 @@ namespace bobi {
             return angle;
         }
 
+        void copy_pose(const bobi_msgs::PoseStamped& in, bobi_msgs::PoseStamped& target)
+        {
+            target.pose.xyz = in.pose.xyz;
+            target.pose.rpy = in.pose.rpy;
+            std::copy(in.pose.contours.begin(), in.pose.contours.end(), std::back_inserter(target.pose.contours));
+            target.pose.is_filtered = in.pose.is_filtered;
+            target.pose.is_swapped = in.pose.is_swapped;
+            target.header.stamp = in.header.stamp;
+        }
+
         bool _force_robot_position;
         int _min_history_len;
     }; // namespace bobi

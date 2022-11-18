@@ -15,6 +15,8 @@
 #include <std_msgs/Header.h>
 #include <dynamic_reconfigure/server.h>
 
+#define FPS_WINDOW 30
+
 namespace bobi {
     enum CameraLocation {
         NA,
@@ -26,7 +28,7 @@ namespace bobi {
     public:
         FrameInfo(std::shared_ptr<ros::NodeHandle> nh)
             : _nh(nh),
-              _top_fps(0.),
+              _filtering_fps(0.),
               _bottom_fps(0.)
         {
             _prev_time = ros::Time::now();
@@ -75,7 +77,7 @@ namespace bobi {
             bool rfiltered,
             CameraLocation camera_loc = CameraLocation::NA)
         {
-            draw_fps(frame);
+            draw_fps(frame, camera_loc);
             draw_poses(frame, individual_poses, camera_loc, ifiltered, rfiltered);
             draw_robot_poses(frame, robot_poses, camera_loc, ifiltered, rfiltered);
             draw_center(frame, camera_loc);
@@ -84,16 +86,34 @@ namespace bobi {
             draw_uptime(frame);
         }
 
-        void draw_fps(cv::Mat& frame)
+        void draw_fps(cv::Mat& frame, const CameraLocation camera_loc)
         {
             ros::Time now = ros::Time::now();
             double dt = ros::Duration(now - _prev_time).toSec();
+            _filtering_fps_window.push_back(dt);
+            if (_filtering_fps_window.size() > FPS_WINDOW) {
+                _filtering_fps_window.erase(_filtering_fps_window.begin());
+            }
+            float top_fps = std::accumulate(_filtering_fps_window.begin(), _filtering_fps_window.end(), 0.) / _filtering_fps_window.size();
 
-            {
+            // {
+            //     std::stringstream stream;
+            //     stream << std::fixed << std::setprecision(1) << 1. / top_fps;
+            //     cv::putText(frame,
+            //         "FPS (processing): " + stream.str(),
+            //         cv::Point(frame.size().width * 0.03, frame.size().height * 0.05),
+            //         cv::FONT_HERSHEY_DUPLEX,
+            //         0.5,
+            //         CV_RGB(200, 0, 0),
+            //         2);
+            // }
+
+            switch (camera_loc) {
+            case CameraLocation::TOP: {
                 std::stringstream stream;
-                stream << std::fixed << std::setprecision(1) << 1. / dt;
+                stream << std::fixed << std::setprecision(1) << _filtering_fps;
                 cv::putText(frame,
-                    "FPS (top): " + stream.str(),
+                    "FPS (w/ filtering): " + stream.str(),
                     cv::Point(frame.size().width * 0.03, frame.size().height * 0.05),
                     cv::FONT_HERSHEY_DUPLEX,
                     0.5,
@@ -101,28 +121,17 @@ namespace bobi {
                     2);
             }
 
-            {
+            case CameraLocation::BOTTOM: {
                 std::stringstream stream;
-                stream << std::fixed << std::setprecision(1) << _top_fps;
+                stream << std::fixed << std::setprecision(1) << _bottom_fps;
                 cv::putText(frame,
-                    "FPS (filtering): " + stream.str(),
-                    cv::Point(frame.size().width * 0.03, frame.size().height * 0.09),
+                    "FPS: " + stream.str(),
+                    cv::Point(frame.size().width * 0.03, frame.size().height * 0.05),
                     cv::FONT_HERSHEY_DUPLEX,
                     0.5,
                     CV_RGB(200, 0, 0),
                     2);
             }
-
-            {
-                std::stringstream stream;
-                stream << std::fixed << std::setprecision(1) << _bottom_fps;
-                cv::putText(frame,
-                    "FPS (bottom): " + stream.str(),
-                    cv::Point(frame.size().width * 0.03, frame.size().height * 0.13),
-                    cv::FONT_HERSHEY_DUPLEX,
-                    0.5,
-                    CV_RGB(200, 0, 0),
-                    2);
             }
 
             _prev_time = now;
@@ -133,7 +142,11 @@ namespace bobi {
             if (poses.size() > 0 && camera_loc == CameraLocation::TOP) {
                 double cur_fps = 1. / ros::Duration(poses[0].header.stamp - _prev_top_header.stamp).toSec();
                 if (cur_fps != std::numeric_limits<double>::infinity()) {
-                    _top_fps = cur_fps;
+                    _top_fps_window.push_back(cur_fps);
+                    if (_top_fps_window.size() > FPS_WINDOW) {
+                        _top_fps_window.erase(_top_fps_window.begin());
+                    }
+                    _filtering_fps = std::accumulate(_top_fps_window.begin(), _top_fps_window.end(), 0.) / _top_fps_window.size();
                 }
                 _prev_top_header = poses[0].header;
             }
@@ -151,7 +164,7 @@ namespace bobi {
 
                     {
                         std::stringstream stream;
-                        stream << std::fixed << std::setprecision(1) << _top_fps;
+                        stream << std::fixed << std::setprecision(1) << _filtering_fps;
 
                         std::string msg;
                         cv::Scalar colour;
@@ -188,7 +201,11 @@ namespace bobi {
             if (poses.size() > 0 && camera_loc == CameraLocation::BOTTOM) {
                 double cur_fps = 1. / ros::Duration(poses[0].header.stamp - _prev_bottom_header.stamp).toSec();
                 if (cur_fps != std::numeric_limits<double>::infinity()) {
-                    _bottom_fps = cur_fps;
+                    _bottom_fps_window.push_back(cur_fps);
+                    if (_bottom_fps_window.size() > FPS_WINDOW) {
+                        _bottom_fps_window.erase(_bottom_fps_window.begin());
+                    }
+                    _bottom_fps = std::accumulate(_bottom_fps_window.begin(), _bottom_fps_window.end(), 0.) / _bottom_fps_window.size();
                 }
                 _prev_bottom_header = poses[0].header;
             }
@@ -285,7 +302,7 @@ namespace bobi {
                     for (int i = 0; i < neighs; ++i) {
                         bobi_msgs::PoseStamped pose = kick.neighs.poses[i];
                         cv::Point com(pose.pose.xyz.x / _top_pix2m, pose.pose.xyz.y / _top_pix2m);
-                        cv::circle(frame, com, 8, cv::Scalar(0, std::max(step * (i + 1), 255), 0), 2);
+                        cv::circle(frame, com, 8, cv::Scalar(0, std::min(step * (i + 1), 255), 0), 2);
                     }
                 }
 
@@ -492,7 +509,7 @@ namespace bobi {
         std::vector<cv::Scalar> _colours_below;
         std::mutex _cfg_mutex;
 
-        double _top_fps;
+        double _filtering_fps;
         double _bottom_fps;
         std_msgs::Header _prev_top_header;
         std_msgs::Header _prev_bottom_header;
@@ -501,6 +518,10 @@ namespace bobi {
         std::mutex _bottomw_mutex;
         std::pair<cv::Point, cv::Point2f> _top_mouse_coords;
         std::pair<cv::Point, cv::Point2f> _bottom_mouse_coords;
+
+        std::vector<float> _top_fps_window;
+        std::vector<float> _bottom_fps_window;
+        std::vector<float> _filtering_fps_window;
 
         double _top_pix2m;
         double _bottom_pix2m;

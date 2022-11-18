@@ -25,112 +25,59 @@ namespace bobi {
             size_t num_agents,
             size_t num_robots)
         {
+            if (!individual_poses.size()) {
+                return;
+            }
+
             auto r0 = robot_poses.begin();
             auto t0 = individual_poses.begin();
+            size_t sidx = num_robots;
+
+            if (num_robots > 0 && r0->size() == num_robots) {
+                for (size_t i = 0; i < r0->size(); ++i) {
+                    float min_dist = std::numeric_limits<float>::infinity();
+                    int min_idx = INVALID;
+                    for (size_t j = 0; j < t0->size(); ++j) {
+                        float dist = euc_distance((*r0)[i], (*t0)[j]);
+                        if (dist < min_dist) {
+                            min_dist = dist;
+                            min_idx = j;
+                        }
+                    }
+
+                    if (min_idx != INVALID && min_idx != i) {
+                        bobi_msgs::PoseStamped tmp;
+                        if (!_force_robot_position) {
+                            copy_pose((*t0)[min_idx], tmp);
+                            copy_pose((*t0)[i], (*t0)[min_idx]);
+                            copy_pose(tmp, (*t0)[i]);
+                        }
+                        else {
+                            copy_pose((*r0)[i], (*t0)[i]);
+                            (*t0)[i].pose.is_swapped = true;
+                        }
+                    }
+                }
+            }
 
             AgentPose copy;
             if (t0->size()) {
+
                 copy.resize(t0->size());
-                std::copy(t0->begin(), t0->end(), copy.begin());
+                for (size_t i = 0; i < copy.size(); ++i) {
+                    copy_pose((*t0)[i], copy[i]);
+                }
             }
             else {
                 if (num_robots && r0->size()) {
                     copy.resize(r0->size());
                     t0->resize(r0->size());
-                    std::copy(r0->begin(), r0->end(), copy.begin());
-                    std::copy(r0->begin(), r0->end(), t0->begin());
-                }
-            }
-
-            size_t sidx = num_robots;
-            if (num_robots > 0 && r0->size()) {
-                if (copy.size() >= num_agents) {
-                    _rearrange_to_nearest_centroids(copy, *r0, *t0, 0, true);
-                }
-                else {
-                    auto distances = _rearrange_to_nearest_centroids(copy, *r0, *t0, 0, true);
-
-                    if (num_robots == 1 && (distances[0] > MAX_DIST_PER_TS || distances[0] == INVALID)
-                        && individual_poses.size() > 1) {
-
-                        auto t1 = std::next(individual_poses.begin());
-                        if (t1->size()) {
-                            _rearrange_to_nearest_centroids(copy, *r0, *t1, 0, true);
-                        }
+                    for (size_t i = 0; i < copy.size(); ++i) {
+                        copy_pose((*r0)[i], copy[i]);
+                        copy_pose((*r0)[i], (*t0)[i]);
                     }
                 }
             }
-
-            // if (individual_poses.size() > 1) {
-            //     auto t1 = std::next(individual_poses.begin());
-            //     _rearrange_to_nearest_centroids(copy, *t0, *t1, num_robots, false);
-            // }
-
-            for (size_t i = 0; i < copy.size(); ++i) {
-                if (copy[i].pose.xyz.x == INVALID) {
-                    ROS_ERROR("Invalid in poses");
-                }
-            }
-
-            if (t0->size()) {
-                (*t0).clear();
-                size_t sz = std::min(num_agents, copy.size());
-                for (size_t i = 0; i < sz; ++i) {
-                    t0->push_back(copy[i]);
-                }
-            }
-        }
-
-    protected:
-        std::vector<float> _rearrange_to_nearest_centroids(AgentPose& copy, const AgentPose& l1, const AgentPose& l2, int sidx, bool is_robot = true)
-        {
-            float min_dist = std::numeric_limits<float>::infinity();
-            int min_idx = INVALID;
-
-            std::vector<bool> taken_idcs(l2.size(), false);
-            std::vector<float> distances(l2.size(), INVALID);
-
-            for (size_t i = sidx; i < l1.size(); ++i) {
-                for (size_t j = sidx; j < l2.size(); ++j) {
-                    float dist = euc_distance(l1[i], l2[j]);
-                    if (dist < min_dist
-                        && !taken_idcs[j]) {
-                        if (min_idx < l2.size()) {
-                            taken_idcs[min_idx] = false;
-                        }
-                        taken_idcs[j] = true;
-                        min_dist = dist;
-                        min_idx = j;
-                    }
-                }
-
-                if (min_idx != INVALID) {
-                    double yaw = std::abs(l1[i].pose.rpy.yaw - l2[min_idx].pose.rpy.yaw);
-
-                    copy[min_idx] = l2[i];
-                    copy[min_idx].pose.xyz = l2[i].pose.xyz;
-                    copy[min_idx].pose.rpy = l2[i].pose.rpy;
-                    std::copy(l2[i].pose.contours.begin(), l2[i].pose.contours.end(), std::back_inserter( copy[min_idx].pose.contours));
-                    copy[min_idx].pose.is_filtered = l2[i].pose.is_filtered;
-                    copy[min_idx].pose.is_swapped = l2[i].pose.is_swapped;
-
-                    copy[i] = l2[min_idx];
-                    copy[i].pose.xyz = l2[min_idx].pose.xyz;
-                    copy[i].pose.rpy = l2[min_idx].pose.rpy;
-                    std::copy(l2[min_idx].pose.contours.begin(), l2[min_idx].pose.contours.end(), std::back_inserter(copy[i].pose.contours));
-                    copy[i].pose.is_filtered = l2[min_idx].pose.is_filtered;
-                    copy[i].pose.is_swapped = true;
-                    
-                    if (yaw > M_PI && is_robot) {
-                        copy[i].pose.rpy.yaw = l1[i].pose.rpy.yaw;
-                        copy[i].pose.is_filtered = true;
-                    }
-
-                    distances[min_idx] = min_dist;
-                }
-            }
-
-            return distances;
         }
     };
 } // namespace bobi
