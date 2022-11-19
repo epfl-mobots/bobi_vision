@@ -1,12 +1,8 @@
 top_camera:
-  using_file: False
-  camera_dev_no: 2
-  # camera_dev_no: "/home/vpapaspy/Desktop/idTracker_test.mp4"
-  # camera_dev_no: "/home/vpapaspy/Desktop/test.mp4"
-  # camera_dev_no: /home/fishbot-user/Desktop/exp1_lq.mp4
-  # camera_dev_no: /home/vpapaspy/Desktop/2fish_exps/exp2_lq.mp4
-  # camera_dev_no: /home/fishbot-user/Desktop/abc01.mp4
-  # camera_dev_no: /home/vpapaspy/Desktop/experiments-25.mp4
+  using_file: True
+  # camera_dev_no: 2
+  # camera_dev_no: "/home/fishbot-user/storage/testing/v2/1agent-ref/epfl-fishfacility_11_18_2022-11_34_26/top_raw.mp4"
+  camera_dev_no: "/home/fishbot-user/storage/testing/v2/5agents-ref-01/epfl-fishfacility_11_18_2022-14_22_40/top_raw.mp4"
   camera_px_width: 512
   camera_px_height: 512
   camera_px_width_undistorted: 507
@@ -45,13 +41,12 @@ top_camera:
   
 
 bottom_camera:
-  using_file: False
-  camera_dev_no: 3
-  # camera_dev_no: /home/fishbot-user/Desktop/bot_annot.mp4
+  using_file: True
+  # camera_dev_no: 3
+  # camera_dev_no: "/home/fishbot-user/storage/testing/v2/1agent-ref/epfl-fishfacility_11_18_2022-11_34_26/bot_raw.mp4"
+  camera_dev_no: "/home/fishbot-user/storage/testing/v2/5agents-ref-01/epfl-fishfacility_11_18_2022-14_22_40/bot_raw.mp4"
   camera_px_width: 640
   camera_px_height: 480
-  # camera_px_width: 616
-  # camera_px_height: 388
   camera_px_width_undistorted: 616
   camera_px_height_undistorted: 388
   fps: 30
