@@ -47,12 +47,10 @@ namespace bobi {
 
                     if (min_idx != INVALID && min_idx != i) {
                         bobi_msgs::PoseStamped tmp;
-                        if (!_force_robot_position) {
-                            copy_pose((*t0)[min_idx], tmp);
-                            copy_pose((*t0)[i], (*t0)[min_idx]);
-                            copy_pose(tmp, (*t0)[i]);
-                        }
-                        else {
+                        copy_pose((*t0)[min_idx], tmp);
+                        copy_pose((*t0)[i], (*t0)[min_idx]);
+                        copy_pose(tmp, (*t0)[i]);
+                        if (_force_robot_position) {
                             copy_pose((*r0)[i], (*t0)[i]);
                             (*t0)[i].pose.is_swapped = true;
                         }
