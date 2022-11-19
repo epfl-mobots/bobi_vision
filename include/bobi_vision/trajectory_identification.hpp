@@ -3,11 +3,12 @@
 
 #include <bobi_msgs/PoseStamped.h>
 #include <bobi_msgs/PoseVec.h>
+#include <bobi_msgs/NumAgents.h>
+#include <bobi_msgs/GetNumAgents.h>
 #include <bobi_vision/filtering_method_base.hpp>
 #include <dynamic_reconfigure/server.h>
 
 #include <bobi_vision/TrajectoryIdentificationConfig.h>
-#include <bobi_vision/BlobDetectorConfig.h>
 #include <bobi_vision/trajectory_identification_method_factory.hpp>
 
 #include <bobi_vision/coordinate_mapper.hpp>
@@ -45,10 +46,21 @@ namespace bobi {
                 _top_cfg.camera_px_width_undistorted,
                 _top_cfg.camera_px_height_undistorted));
 
+            _num_agents_srv = _nh->serviceClient<bobi_msgs::GetNumAgents>("get_num_agents");
+            _num_agents_srv.waitForExistence();
+
+            bobi_msgs::GetNumAgents srv;
+            if (_num_agents_srv.call(srv)) {
+                _num_agents = srv.response.info.num_agents;
+                _num_robots = srv.response.info.num_robots;
+                _num_virtu_agents = srv.response.info.num_virtu_agents;
+            }
+
+            _num_agents_sub = _nh->subscribe("num_agents_update", 1, &TrajectoryIdentification::_num_agents_cb, this);
+
             // Pose subscribers
             _naive_poses_sub = _nh->subscribe("naive_poses", 1, &TrajectoryIdentification::_naive_pose_cb, this);
             _robot_poses_sub = _nh->subscribe("robot_poses", 1, &TrajectoryIdentification::_robot_pose_cb, this);
-            // _bottom2top_srv = _nh->serviceClient<bobi_msgs::ConvertCoordinates>("convert_bottom2top");
         }
 
         std::tuple<AgentPose, bool> filter()
@@ -74,6 +86,14 @@ namespace bobi {
         }
 
     protected:
+        void _num_agents_cb(const bobi_msgs::NumAgents::ConstPtr& msg)
+        {
+            std::lock_guard<std::mutex> guard(_cfg_mutex);
+            _num_agents = msg->num_agents;
+            _num_robots = msg->num_robots;
+            _num_virtu_agents = msg->num_virtu_agents;
+        }
+
         void _naive_pose_cb(const bobi_msgs::PoseVec::ConstPtr& pose_vec_ptr)
         {
             std::lock_guard<std::mutex> guard(_ind_mutex);
@@ -115,9 +135,6 @@ namespace bobi {
             std::lock_guard<std::mutex> guard(_cfg_mutex);
             bool success;
             _force_robot_position = config.force_robot_position;
-            _num_agents = config.num_agents;
-            _num_robots = config.num_robots;
-            _num_virtu_agents = config.num_virtu_agents;
             std::tie(_filter, success) = _method_factory(_nh, config.method, _force_robot_position);
             if (success) {
                 ROS_INFO("Trajectory Identification method changed");
@@ -159,6 +176,9 @@ namespace bobi {
         ros::ServiceClient _bottom2top_srv;
         std::mutex _ind_mutex;
         std::mutex _rb_mutex;
+
+        ros::ServiceClient _num_agents_srv;
+        ros::Subscriber _num_agents_sub;
 
         std::vector<cv::Point2d> _points_bottom;
         std::vector<cv::Point2d> _points_top;

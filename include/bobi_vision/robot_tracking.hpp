@@ -85,7 +85,10 @@ namespace bobi {
 
             if (!_robot_is_top) {
                 // detect robots
-                _poses2d = _cd->detect(_masked_frame); // Detect colour blobs
+                std::vector<cv::Point3f> poses2d = _cd->detect(_masked_frame); // Detect colour blobs
+                if (poses2d.size()) {
+                    _poses2d = poses2d;
+                }
             }
         }
 

@@ -11,9 +11,14 @@
 
 #include <bobi_msgs/PoseStamped.h>
 #include <bobi_msgs/PoseVec.h>
+#include <bobi_msgs/GetNumAgents.h>
+#include <bobi_msgs/NumAgents.h>
 
 #include <bobi_vision/mask_factory.hpp>
 #include <bobi_vision/camera_config.hpp>
+
+#include <dynamic_reconfigure/server.h>
+#include <bobi_vision/IndividualTrackerConfig.h>
 
 namespace bobi {
     class IndividualTracking {
@@ -63,6 +68,14 @@ namespace bobi {
             ROS_WARN("Undistorted image ROI set to: %d x %d", _roi.size().width, _roi.size().height);
 
             _setup_mask = bobi::MaskFactory()(_camera_cfg.mask_type, _camera_cfg.mask_specs, cv::Size(_camera_cfg.camera_px_width, _camera_cfg.camera_px_height), CV_8UC3);
+
+            _num_agent_pub = nh->advertise<bobi_msgs::NumAgents>("num_agents_update", 1);
+
+            dynamic_reconfigure::Server<bobi_vision::IndividualTrackerConfig>::CallbackType f;
+            f = boost::bind(&IndividualTracking::_config_cb, this, _1, _2);
+            _config_server.setCallback(f);
+
+            _num_agent_srv = _nh->advertiseService("get_num_agents", &IndividualTracking::_num_agent_srv_cb, this);
         }
 
         bool read()
@@ -81,7 +94,13 @@ namespace bobi {
             _setup_mask->roi(_masked_frame);
 
             // detect individuals
-            std::tie(_poses2d, _contours) = _bd->detect(_masked_frame);
+            std::vector<cv::Point3f> poses2d;
+            std::vector<std::vector<cv::Point>> contours;
+            std::tie(poses2d, contours) = _bd->detect(_masked_frame);
+            if (poses2d.size()) {
+                _poses2d = poses2d;
+                _contours = contours;
+            }
 
             std::vector<int> idcs_to_remove;
             for (size_t i = 0; i < _poses2d.size(); ++i) {
@@ -135,8 +154,73 @@ namespace bobi {
         }
 
     protected:
+        void _config_cb(bobi_vision::IndividualTrackerConfig& config, uint32_t level)
+        {
+            ROS_INFO("Updated config");
+            bool num_agents_changed = (_cfg.num_agents != config.num_agents || _cfg.num_robots != config.num_robots || _cfg.num_virtu_agents != config.num_virtu_agents);
+            _cfg.num_agents = config.num_agents;
+            _cfg.num_robots = config.num_robots;
+            _cfg.num_virtu_agents = config.num_virtu_agents;
+
+            _cfg.num_background_samples = config.num_background_samples;
+            _cfg.bstor_history = config.bstor_history;
+            _cfg.var_threshold = config.var_threshold;
+            _cfg.detect_shadows = config.detect_shadows;
+            _cfg.learning_rate = config.learning_rate;
+            _cfg.relearning_rate = config.relearning_rate;
+            _cfg.min_contour_size = config.min_contour_size;
+
+            _cfg.quality_level = config.quality_level;
+            _cfg.min_distance = config.min_distance;
+            _cfg.block_size = config.block_size;
+            _cfg.use_harris_dtor = config.use_harris_dtor;
+            _cfg.k = config.k;
+
+            _cfg.threshold_new_value = config.threshold_new_value;
+            _cfg.threhold_value = config.threhold_value;
+
+            _cfg.el_dim_x = config.el_dim_x;
+            _cfg.el_dim_y = config.el_dim_y;
+            _cfg.el_x = config.el_x;
+            _cfg.el_y = config.el_y;
+            _cfg.erode_x = config.erode_x;
+            _cfg.erode_y = config.erode_y;
+            _cfg.close_x = config.close_x;
+            _cfg.close_y = config.close_y;
+            _cfg.dilate_x = config.dilate_x;
+            _cfg.dilate_y = config.dilate_y;
+            _cfg.erode_iters = config.erode_iters;
+            _cfg.close_iters = config.close_iters;
+            _cfg.dilate_iters = config.dilate_iters;
+            _bd->set_config(_cfg);
+            if (config.reset_background_dtor) {
+                _bd->reset_background_detector();
+            }
+
+            if (num_agents_changed) {
+                bobi_msgs::NumAgents msg;
+                msg.num_agents = _cfg.num_agents;
+                msg.num_robots = _cfg.num_robots;
+                msg.num_virtu_agents = _cfg.num_virtu_agents;
+                _num_agent_pub.publish(msg);
+            }
+        }
+
+        bool _num_agent_srv_cb(
+            bobi_msgs::GetNumAgents::Request& req,
+            bobi_msgs::GetNumAgents::Response& res)
+        {
+            res.info.num_agents = _cfg.num_agents;
+            res.info.num_robots = _cfg.num_robots;
+            res.info.num_virtu_agents = _cfg.num_virtu_agents;
+            return true;
+        }
+
         std::shared_ptr<ros::NodeHandle> _nh;
         image_transport::ImageTransport _it;
+        dynamic_reconfigure::Server<bobi_vision::IndividualTrackerConfig> _config_server;
+        ros::ServiceServer _num_agent_srv;
+        ros::Publisher _num_agent_pub;
 
         top::CameraConfig _camera_cfg;
         cv::VideoCapture _camera;

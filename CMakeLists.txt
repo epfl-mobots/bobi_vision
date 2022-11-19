@@ -32,7 +32,7 @@ find_package(Eigen3 REQUIRED)
 catkin_python_setup()
 
 generate_dynamic_reconfigure_options(
-  config/BlobDetector.cfg
+  config/IndividualTracker.cfg
   config/ColourDetector.cfg
   config/TrajectoryIdentificationConfig.cfg
 )

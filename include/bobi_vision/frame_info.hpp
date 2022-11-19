@@ -7,9 +7,10 @@
 
 #include <bobi_msgs/PoseStamped.h>
 #include <bobi_msgs/ConvertCoordinates.h>
+#include <bobi_msgs/NumAgents.h>
+#include <bobi_msgs/GetNumAgents.h>
 #include <bobi_vision/coordinate_mapper.hpp>
 #include <bobi_msgs/KickSpecs.h>
-#include <bobi_vision/BlobDetectorConfig.h>
 #include <bobi_vision/mask_factory.hpp>
 
 #include <std_msgs/Header.h>
@@ -56,13 +57,20 @@ namespace bobi {
 
             _bottom2top_srv = _nh->serviceClient<bobi_msgs::ConvertCoordinates>("convert_bottom2top");
             _top2bottom_srv = _nh->serviceClient<bobi_msgs::ConvertCoordinates>("convert_top2bottom");
+            _num_agents_srv = _nh->serviceClient<bobi_msgs::GetNumAgents>("get_num_agents");
             _bottom2top_srv.waitForExistence();
             _top2bottom_srv.waitForExistence();
+            _num_agents_srv.waitForExistence();
 
-            dynamic_reconfigure::Server<bobi_vision::BlobDetectorConfig>::CallbackType f;
-            f = boost::bind(&FrameInfo::_config_cb, this, _1, _2);
-            _config_server.setCallback(f);
+            bobi_msgs::GetNumAgents srv;
+            if (_num_agents_srv.call(srv)) {
+                _num_agents = srv.response.info.num_agents;
+                _num_robots = srv.response.info.num_robots;
+                _num_virtu_agents = srv.response.info.num_virtu_agents;
+                _init_colours();
+            }
 
+            _num_agents_sub = _nh->subscribe("num_agents_update", 1, &FrameInfo::_num_agents_cb, this);
             _target_position = _nh->advertise<bobi_msgs::PoseStamped>("target_position", 1);
 
             _start_time = ros::Time::now().toSec();
@@ -119,7 +127,7 @@ namespace bobi {
                     0.5,
                     CV_RGB(200, 0, 0),
                     2);
-            }
+            } break;
 
             case CameraLocation::BOTTOM: {
                 std::stringstream stream;
@@ -131,7 +139,7 @@ namespace bobi {
                     0.5,
                     CV_RGB(200, 0, 0),
                     2);
-            }
+            } break;
             }
 
             _prev_time = now;
@@ -428,11 +436,8 @@ namespace bobi {
         }
 
     protected:
-        void _config_cb(bobi_vision::BlobDetectorConfig& config, uint32_t level)
+        void _init_colours()
         {
-            _num_agents = config.num_agents;
-            _num_robots = config.num_robots;
-
             std::lock_guard<std::mutex> guard(_cfg_mutex);
 
             _colours.clear();
@@ -442,11 +447,20 @@ namespace bobi {
                 _colours.push_back(cv::Scalar(0, 0, 255));
                 _colours_below.push_back(cv::Scalar(0, 0, 255));
             }
+
             auto rand_in_range = [](int lb = 0, int ub = 255) { return (std::rand() % (ub - lb) + lb); };
             for (size_t i = 1; i < _num_agents; ++i) {
                 _colours.push_back(cv::Scalar(255, 0, 0));
                 // _colours.push_back(cv::Scalar(rand_in_range(0, 250), rand_in_range(0, 250), rand_in_range(0, 250)));
             }
+        }
+
+        void _num_agents_cb(const bobi_msgs::NumAgents::ConstPtr& msg)
+        {
+            _num_agents = msg->num_agents;
+            _num_robots = msg->num_robots;
+            _num_virtu_agents = msg->num_virtu_agents;
+            _init_colours();
         }
 
         static void _top_cam_mouse_cb(int event, int x, int y, int flags, void* data)
@@ -499,11 +513,13 @@ namespace bobi {
         ros::ServiceClient _top2bottom_srv;
         ros::ServiceClient _bottom2top_srv;
 
-        dynamic_reconfigure::Server<bobi_vision::BlobDetectorConfig> _config_server;
+        ros::ServiceClient _num_agents_srv;
+        ros::Subscriber _num_agents_sub;
 
         ros::Time _prev_time;
         size_t _num_agents;
         size_t _num_robots;
+        size_t _num_virtu_agents;
 
         std::vector<cv::Scalar> _colours;
         std::vector<cv::Scalar> _colours_below;

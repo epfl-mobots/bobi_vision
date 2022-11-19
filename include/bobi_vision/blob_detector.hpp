@@ -4,14 +4,14 @@
 #include <opencv2/opencv.hpp>
 
 #include <ros/ros.h>
-#include <dynamic_reconfigure/server.h>
-#include <bobi_vision/BlobDetectorConfig.h>
 
 namespace bobi {
     namespace defaults {
         struct BlobDetectorConfig {
             // behavioural
             size_t num_agents = 5;
+            size_t num_robots = 1;
+            size_t num_virtu_agents = 0;
 
             // background subtractor
             size_t num_background_samples = 50;
@@ -56,9 +56,6 @@ namespace bobi {
                                                                                                                           _background_counter(0),
                                                                                                                           _annotate_frame(annotate_frame)
         {
-            dynamic_reconfigure::Server<bobi_vision::BlobDetectorConfig>::CallbackType f;
-            f = boost::bind(&BlobDetector::_config_cb, this, _1, _2);
-            _bd_config_server.setCallback(f);
         }
 
         std::pair<std::vector<cv::Point3f>, std::vector<std::vector<cv::Point>>> detect(cv::Mat& frame)
@@ -122,6 +119,11 @@ namespace bobi {
         cv::Mat get_blob_frame() const
         {
             return _blob_frame;
+        }
+
+        void set_config(const defaults::BlobDetectorConfig& config)
+        {
+            _config = config;
         }
 
     protected:
@@ -231,47 +233,6 @@ namespace bobi {
         defaults::BlobDetectorConfig _config;
 
     private:
-        void _config_cb(bobi_vision::BlobDetectorConfig& config, uint32_t level)
-        {
-            ROS_INFO("Updated config");
-            _config.num_agents = config.num_agents;
-            _config.num_background_samples = config.num_background_samples;
-            _config.bstor_history = config.bstor_history;
-            _config.var_threshold = config.var_threshold;
-            _config.detect_shadows = config.detect_shadows;
-            _config.learning_rate = config.learning_rate;
-            _config.relearning_rate = config.relearning_rate;
-            _config.min_contour_size = config.min_contour_size;
-
-            _config.quality_level = config.quality_level;
-            _config.min_distance = config.min_distance;
-            _config.block_size = config.block_size;
-            _config.use_harris_dtor = config.use_harris_dtor;
-            _config.k = config.k;
-
-            _config.threshold_new_value = config.threshold_new_value;
-            _config.threhold_value = config.threhold_value;
-
-            _config.el_dim_x = config.el_dim_x;
-            _config.el_dim_y = config.el_dim_y;
-            _config.el_x = config.el_x;
-            _config.el_y = config.el_y;
-            _config.erode_x = config.erode_x;
-            _config.erode_y = config.erode_y;
-            _config.close_x = config.close_x;
-            _config.close_y = config.close_y;
-            _config.dilate_x = config.dilate_x;
-            _config.dilate_y = config.dilate_y;
-            _config.erode_iters = config.erode_iters;
-            _config.close_iters = config.close_iters;
-            _config.dilate_iters = config.dilate_iters;
-
-            if (config.reset_background_dtor) {
-                reset_background_detector();
-            }
-        }
-
-        dynamic_reconfigure::Server<bobi_vision::BlobDetectorConfig> _bd_config_server;
         cv::Ptr<cv::BackgroundSubtractor> _background_stor;
         size_t _background_counter;
     };
