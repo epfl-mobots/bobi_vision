@@ -28,10 +28,11 @@ namespace bobi {
         {
             _poses.resize(_led_colours.size());
 
-            dynamic_reconfigure::Server<bobi_vision::ColourDetectorConfig>::CallbackType f;
             if (use_dynamic_reconf) {
+                dynamic_reconfigure::Server<bobi_vision::ColourDetectorConfig>::CallbackType f;
                 f = boost::bind(&ColourDetector::_config_cb, this, _1, _2);
-                _cd_config_server.setCallback(f);
+                _cd_config_server = std::make_unique<dynamic_reconfigure::Server<bobi_vision::ColourDetectorConfig>>();
+                _cd_config_server->setCallback(f);
             }
 
             // cv::namedWindow("front");
@@ -210,7 +211,7 @@ namespace bobi {
         TuplePairVec _hsv_thresholds;
         std::vector<cv::Point3f> _poses;
 
-        dynamic_reconfigure::Server<bobi_vision::ColourDetectorConfig> _cd_config_server;
+        std::unique_ptr<dynamic_reconfigure::Server<bobi_vision::ColourDetectorConfig>> _cd_config_server;
 
     }; // namespace bobi
 
