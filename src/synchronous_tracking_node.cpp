@@ -19,8 +19,6 @@ int main(int argc, char** argv)
         std_msgs::Header header;
         header.stamp = ros::Time::now();
 
-        auto start = ros::Time::now();
-
         bool it_success = it.read();
         bool rt_success = rt.read();
 
@@ -29,9 +27,6 @@ int main(int argc, char** argv)
 
         it.publish(header);
         rt.publish(header);
-
-        double duration = (ros::Time::now() - start).toSec();
-        ROS_WARN("robot ind t: %d %d %f", rt_success, it_success, duration);
 
         ros::spinOnce();
         loop_rate.sleep();
