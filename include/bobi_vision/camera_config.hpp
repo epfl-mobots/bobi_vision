@@ -51,7 +51,7 @@ namespace bobi {
     namespace bottom {
         struct CameraConfig {
             bool using_file = false;
-            std::string camera_dev_no = "3";
+            std::string camera_dev_no = "2";
             int camera_px_width = 640;
             int camera_px_height = 480;
             int camera_px_width_undistorted = 617;
