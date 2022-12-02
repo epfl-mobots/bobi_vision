@@ -144,6 +144,10 @@ namespace bobi {
                     }
                 }
             }
+
+            if (t0->size() > num_agents) {
+                t0->resize(num_agents);
+            }
         }
 
     protected:
