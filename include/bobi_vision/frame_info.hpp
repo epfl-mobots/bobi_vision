@@ -6,6 +6,7 @@
 #include <opencv2/highgui.hpp>
 
 #include <bobi_msgs/PoseStamped.h>
+#include <bobi_msgs/TargetPose.h>
 #include <bobi_msgs/ConvertCoordinates.h>
 #include <bobi_msgs/NumAgents.h>
 #include <bobi_msgs/GetNumAgents.h>
@@ -71,7 +72,7 @@ namespace bobi {
             }
 
             _num_agents_sub = _nh->subscribe("num_agents_update", 1, &FrameInfo::_num_agents_cb, this);
-            _target_position = _nh->advertise<bobi_msgs::PoseStamped>("target_position", 1);
+            _target_position = _nh->advertise<bobi_msgs::TargetPose>("target_position", 1);
 
             _start_time = ros::Time::now().toSec();
         }
@@ -422,7 +423,9 @@ namespace bobi {
 
         void set_target(const bobi_msgs::PoseStamped& ps)
         {
-            _target_position.publish(ps);
+            bobi_msgs::TargetPose t;
+            t.target = ps;
+            _target_position.publish(t);
         }
 
         void set_top_mask(bobi::MaskPtr mask)
@@ -449,7 +452,7 @@ namespace bobi {
             }
 
             auto rand_in_range = [](int lb = 0, int ub = 255) { return (std::rand() % (ub - lb) + lb); };
-            for (size_t i = 1; i < _num_agents; ++i) {
+            for (size_t i = _num_robots; i < _num_agents; ++i) {
                 _colours.push_back(cv::Scalar(255, 0, 0));
                 // _colours.push_back(cv::Scalar(rand_in_range(0, 250), rand_in_range(0, 250), rand_in_range(0, 250)));
             }
