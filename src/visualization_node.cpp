@@ -132,9 +132,9 @@ protected:
         _rpose_filtered = pose_vec_ptr->is_filtered;
     }
 
-    void _target_pos_cb(const bobi_msgs::PoseStamped::ConstPtr& pos_ptr)
+    void _target_pos_cb(const bobi_msgs::TargetPose::ConstPtr& pos_ptr)
     {
-        _target_position = *pos_ptr;
+        _target_position = pos_ptr->target;
     }
 
     void _kick_specs_cb(const bobi_msgs::KickSpecs::ConstPtr& ks_ptr)

@@ -36,7 +36,8 @@ namespace bobi {
                 medium = "Using video file: " + _camera_cfg.camera_dev_no;
             }
             else {
-                _camera = cv::VideoCapture(std::stoi(_camera_cfg.camera_dev_no), cv::CAP_GSTREAMER);
+                // _camera = cv::VideoCapture(std::stoi(_camera_cfg.camera_dev_no), cv::CAP_GSTREAMER);
+                _camera = cv::VideoCapture(std::stoi(_camera_cfg.camera_dev_no), cv::CAP_V4L2);
                 medium = "Using camera device: " + _camera_cfg.camera_dev_no;
             }
             _camera.set(cv::CAP_PROP_FRAME_WIDTH, _camera_cfg.camera_px_width);

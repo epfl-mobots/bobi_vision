@@ -5,6 +5,7 @@
 #include <cv_bridge/cv_bridge.h>
 
 #include <bobi_msgs/PoseStamped.h>
+#include <bobi_msgs/TargetPose.h>
 #include <bobi_msgs/PoseVec.h>
 #include <bobi_msgs/ConvertCoordinates.h>
 #include <bobi_vision/camera_config.hpp>
@@ -24,7 +25,7 @@ public:
         _top2bottom_srv.waitForExistence();
         _camera_cfg = get_camera_config(*_nh);
         _nh->param<double>("top_camera/pix2m", _top_pix2m, 0.001475);
-        _target_position = _nh->advertise<bobi_msgs::PoseStamped>("target_position", 1);
+        _target_position = _nh->advertise<bobi_msgs::TargetPose>("target_position", 1);
     }
 
     geometry_msgs::Point convert_top2bottom(const geometry_msgs::Point& p)
@@ -45,7 +46,9 @@ public:
 
     void set_target(const bobi_msgs::PoseStamped& ps)
     {
-        _target_position.publish(ps);
+        bobi_msgs::TargetPose t;
+        t.target = ps;
+        _target_position.publish(t);
     }
 
 protected:
