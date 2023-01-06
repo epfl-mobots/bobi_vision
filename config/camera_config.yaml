@@ -47,7 +47,7 @@ bottom_camera:
   # camera_dev_no: "/home/fishbot-user/storage/testing/v2/5agents-ref-01/epfl-fishfacility_11_18_2022-14_22_40/bot_raw.mp4"
   camera_px_width: 640
   camera_px_height: 480
-  camera_px_width_undistorted: 616
+  camera_px_width_undistorted: 617
   camera_px_height_undistorted: 388
   fps: 30
   pix2m: 0.002201031

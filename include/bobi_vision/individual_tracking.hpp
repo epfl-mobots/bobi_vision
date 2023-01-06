@@ -170,6 +170,7 @@ namespace bobi {
             _cfg.learning_rate = config.learning_rate;
             _cfg.relearning_rate = config.relearning_rate;
             _cfg.min_contour_size = config.min_contour_size;
+            _cfg.max_contour_size = config.max_contour_size;
 
             _cfg.quality_level = config.quality_level;
             _cfg.min_distance = config.min_distance;

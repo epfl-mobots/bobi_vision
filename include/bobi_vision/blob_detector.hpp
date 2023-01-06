@@ -21,6 +21,7 @@ namespace bobi {
             float learning_rate = 0.05;
             float relearning_rate = 0.0;
             size_t min_contour_size = 10;
+            size_t max_contour_size = 200;
 
             // tracking features
             double quality_level = 0.04;
@@ -141,7 +142,7 @@ namespace bobi {
 
             std::vector<std::vector<cv::Point>> remove_countours;
             for (auto& contour : contours) {
-                if (cv::contourArea(contour) < _config.min_contour_size) {
+                if (cv::contourArea(contour) < _config.min_contour_size || cv::contourArea(contour) > _config.max_contour_size) {
                     remove_countours.push_back(contour);
                 }
             }
