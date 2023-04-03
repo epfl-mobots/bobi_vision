@@ -1,5 +1,5 @@
 # bobi_vision
-Behavioural Observation and Bio-hybrid Interaction framework - Vision module
+Behavioural Observation and Biohybrid Interaction framework - Vision module
 
 This module contains all procedures implemented in order to track the robot and lure/fish in real-time.
 
